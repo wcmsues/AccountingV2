@@ -31,7 +31,13 @@ python3 -m http.server 5173
 ```text
 AccountingV2/
 ├── index.html           页面结构 + 内联 SVG 图标库
-├── favicon.svg          站点图标
+├── favicon.svg          浏览器标签图标
+├── manifest.webmanifest Web App 清单（主屏名称、主题色、图标）
+├── icons/
+│   ├── icon.svg         图标源文件
+│   ├── apple-touch-icon.png  iOS 主屏图标（180×180）
+│   ├── icon-192.png
+│   └── icon-512.png
 ├── README.md
 ├── css/
 │   ├── base.css         设计令牌、重置、外壳、Tab 栏

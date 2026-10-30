@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="小账本">
+  <rect width="512" height="512" fill="#FBF5E9"/>
+  <circle cx="256" cy="252" r="198" fill="#FDF4DA"/>
+  <ellipse cx="174" cy="166" rx="40" ry="58" transform="rotate(-25 174 166)" fill="#EFA695"/>
+  <ellipse cx="338" cy="166" rx="40" ry="58" transform="rotate(25 338 166)" fill="#EFA695"/>
+  <ellipse cx="256" cy="292" rx="150" ry="120" fill="#F7BFAF"/>
+  <ellipse cx="162" cy="322" rx="25" ry="15" fill="#EE9C8C" opacity=".55"/>
+  <ellipse cx="350" cy="322" rx="25" ry="15" fill="#EE9C8C" opacity=".55"/>
+  <ellipse cx="203" cy="264" rx="17" ry="20" fill="#4A3B36"/>
+  <ellipse cx="309" cy="264" rx="17" ry="20" fill="#4A3B36"/>
+  <circle cx="209" cy="256" r="6" fill="#ffffff"/>
+  <circle cx="315" cy="256" r="6" fill="#ffffff"/>
+  <ellipse cx="256" cy="338" rx="54" ry="39" fill="#EFA695"/>
+  <ellipse cx="239" cy="338" rx="7.5" ry="10.5" fill="#9C5F52"/>
+  <ellipse cx="273" cy="338" rx="7.5" ry="10.5" fill="#9C5F52"/>
+</svg>
