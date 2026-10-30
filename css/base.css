@@ -91,7 +91,7 @@ svg{display:block;}
   flex-direction:column;
   background:var(--cream);
   padding-bottom:calc(var(--safe-b) + 14px);
-  /* clip 不会创建滚动容器，避免破坏顶栏的 sticky */
+  /* clip 不会创建滚动容器，避免影响页面滚动行为 */
   overflow-x:clip;
 }
 @supports (min-height:100dvh){
@@ -105,14 +105,12 @@ svg{display:block;}
 /* Netlify 免费版右下角徽标：底部留白，避免压住页面最后一行内容 */
 body.is-netlify .app{ padding-bottom:calc(var(--safe-b) + 56px); }
 
-/* ============ 顶栏 ============ */
+/* ============ 顶栏（随页面滚动，不吸顶） ============ */
 .appbar{
-  position:sticky; top:0; z-index:30;
+  position:relative;
   display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px;
   padding:calc(10px + env(safe-area-inset-top)) 16px 8px;
-  background:rgba(251,245,233,.96);
-  backdrop-filter:saturate(1.1) blur(10px);
-  -webkit-backdrop-filter:saturate(1.1) blur(10px);
+  background:var(--cream);
   box-shadow:0 1px 0 rgba(237,226,205,.55);
 }
 .appbar-txt{flex:1; min-width:0;}
