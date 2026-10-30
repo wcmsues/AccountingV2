@@ -1,6 +1,6 @@
 /* =========================================================
    小账本 · 交互组件
-   toast / 确认框 / 底部面板 / 月份条 / 金额输入
+   toast / 确认框 / 底部面板 / 月份下拉日历 / 金额输入
    ========================================================= */
 window.App = window.App || {};
 (function (App) {
@@ -197,19 +197,86 @@ window.App = window.App || {};
     return s;
   }
 
-  /* ---------- 月份条 ---------- */
-  function monthBar(el, ym, onChange) {
-    if (!el) return;
+  /* ---------- 月份下拉日历 ---------- */
+  function monthPopover(anchor, opts) {
+    opts = opts || {};
     var cur = U.currentYm();
-    el.innerHTML =
-      '<button class="mb-btn" type="button" data-d="-1" aria-label="上个月">' + U.ico('i-chev-left') + '</button>' +
-      '<div class="mb-label">' + U.esc(U.ymLabel(ym)) +
-        (ym === cur ? '<span class="mb-now">本月</span>' : '') + '</div>' +
-      '<button class="mb-btn" type="button" data-d="1" aria-label="下个月"' + (ym >= cur ? ' disabled' : '') + '>' +
-        U.ico('i-chev-right') + '</button>';
-    el.querySelectorAll('[data-d]').forEach(function (btn) {
-      btn.onclick = function () { onChange(parseInt(btn.getAttribute('data-d'), 10)); };
+    var min = opts.min || '2000-01';
+    var max = opts.max || cur;
+    var year = parseInt((U.isYm(opts.ym) ? opts.ym : cur).slice(0, 4), 10);
+    var sel = U.isYm(opts.ym) ? opts.ym : cur;
+
+    var mask = document.createElement('div');
+    mask.className = 'mp-mask';
+    mask.innerHTML = '<div class="mp" role="dialog" aria-label="选择月份"></div>';
+    layer().appendChild(mask);
+
+    var panel = mask.querySelector('.mp');
+
+    function render() {
+      var canPrev = (year - 1) >= parseInt(min.slice(0, 4), 10);
+      var canNext = (year + 1) <= parseInt(max.slice(0, 4), 10);
+      var cells = '';
+      for (var m = 1; m <= 12; m++) {
+        var ym = year + '-' + U.pad2(m);
+        var dis = ym < min || ym > max;
+        cells += '<button class="mp-m' + (ym === sel ? ' is-active' : '') + '" type="button" ' +
+          'data-ym="' + ym + '"' + (dis ? ' disabled' : '') + '>' + m + '月</button>';
+      }
+      panel.innerHTML =
+        '<div class="mp-head">' +
+          '<button class="mp-y" type="button" data-y="-1" aria-label="上一年"' + (canPrev ? '' : ' disabled') + '>' +
+            U.ico('i-chev-left') + '</button>' +
+          '<span class="mp-year">' + year + ' 年</span>' +
+          '<button class="mp-y" type="button" data-y="1" aria-label="下一年"' + (canNext ? '' : ' disabled') + '>' +
+            U.ico('i-chev-right') + '</button>' +
+        '</div>' +
+        '<div class="mp-grid">' + cells + '</div>';
+    }
+
+    function place() {
+      var r = anchor.getBoundingClientRect();
+      var w = panel.offsetWidth || 240;
+      var left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - w - 8));
+      panel.style.left = left + 'px';
+      panel.style.top = (r.bottom + 6) + 'px';
+    }
+
+    function close() {
+      if (closed) return;
+      closed = true;
+      mask.classList.remove('is-open');
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', place);
+      setTimeout(function () { if (mask.parentNode) mask.parentNode.removeChild(mask); }, 180);
+      if (opts.onClose) opts.onClose();
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+
+    var closed = false;
+    render();
+    place();
+    requestAnimationFrame(function () { mask.classList.add('is-open'); });
+
+    panel.addEventListener('click', function (e) {
+      var yBtn = e.target.closest('[data-y]');
+      if (yBtn) {
+        year += parseInt(yBtn.getAttribute('data-y'), 10);
+        render();
+        return;
+      }
+      var mBtn = e.target.closest('[data-ym]');
+      if (!mBtn || mBtn.disabled) return;
+      var target = mBtn.getAttribute('data-ym');
+      close();
+      if (opts.onChange) opts.onChange(target);
     });
+
+    mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', place);
+
+    return { close: close };
   }
 
   /* ---------- 金额输入 ---------- */
@@ -232,7 +299,7 @@ window.App = window.App || {};
     confirmType: confirmType,
     sheet: sheet,
     actionSheet: actionSheet,
-    monthBar: monthBar,
+    monthPopover: monthPopover,
     bindAmountInput: bindAmountInput
   };
 })(window.App);

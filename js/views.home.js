@@ -1,6 +1,6 @@
 /* =========================================================
    小账本 · 首页
-   结余大卡 / 三宫格 / 预算 / 待记入 / 近 6 月柱状图 / 最近支出
+   新手引导 / 结余大卡 / 收支三宫格 / 预算 / 待记入 / 每日收支日历 / 支出环形图 + 分类排行 / 收支趋势
    ========================================================= */
 window.App = window.App || {};
 (function (App) {
@@ -11,10 +11,13 @@ window.App = window.App || {};
   var S = App.store;
   var A = App.actions;
 
-  var ym = U.currentYm();
+  var ym = U.currentYm();            // 首页当前查看的月份，由顶部下拉日历切换
+  var trendFrom = null;              // 趋势图手动选择的起止月份，null 时默认近 12 个月
+  var trendTo = null;
   var els = {};
   var bound = false;
 
+  /* 结余卡上的小猪插画 */
   var PIG =
     '<svg viewBox="0 0 140 120" aria-hidden="true">' +
       '<ellipse cx="70" cy="106" rx="46" ry="7" fill="#C9A88F" opacity=".22"/>' +
@@ -39,16 +42,16 @@ window.App = window.App || {};
 
   function init() {
     els.empty = document.getElementById('homeEmpty');
-    els.monthBar = document.getElementById('homeMonthBar');
     els.hero = document.getElementById('homeHero');
     els.stats = document.getElementById('homeStats');
     els.budget = document.getElementById('homeBudget');
     els.pending = document.getElementById('homePending');
+    els.calendar = document.getElementById('homeCalendar');
+    els.catRank = document.getElementById('homeCatRank');
     els.trend = document.getElementById('homeTrendCard');
-    els.recent = document.getElementById('homeRecentCard');
     els.tip = document.getElementById('homeBackupTip');
 
-    if (bound) return;
+    if (bound) return;   // 幂等：重渲染复用同一批监听
     bound = true;
 
     els.empty.addEventListener('click', function (e) {
@@ -76,20 +79,32 @@ window.App = window.App || {};
       if (n) App.ui.toast('补记了 ' + n + ' 笔，可在明细里修改');
     });
 
-    els.trend.addEventListener('click', function (e) {
-      var hit = e.target.closest('[data-ym]');
-      if (!hit) return;
-      var target = hit.getAttribute('data-ym');
-      if (!target || target === ym) return;
-      ym = target;
+    els.catRank.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-cat]');
+      if (!row) return;
+      openCatDetail(row.getAttribute('data-cat'));
+    });
+
+    els.trend.addEventListener('change', function (e) {
+      var sel = e.target;
+      if (!sel || (sel.id !== 'trendFrom' && sel.id !== 'trendTo')) return;
+      var b = trendBounds();
+      // 起点晚于终点时，把另一端一起拉过来，保证区间有效
+      var from = sel.id === 'trendFrom' ? sel.value : b.from;
+      var to = sel.id === 'trendTo' ? sel.value : b.to;
+      if (from > to) {
+        if (sel.id === 'trendFrom') to = from;
+        else from = to;
+      }
+      trendFrom = from;
+      trendTo = to;
       App.refresh();
     });
 
-    els.recent.addEventListener('click', function (e) {
-      var row = e.target.closest('[data-id]');
-      if (!row) return;
-      var rec = S.state.records.filter(function (r) { return r.id === row.getAttribute('data-id'); })[0];
-      if (rec) openRecord(rec);
+    els.calendar.addEventListener('click', function (e) {
+      var cell = e.target.closest('[data-date]');
+      if (!cell) return;
+      openDayDetail(cell.getAttribute('data-date'));
     });
 
     els.tip.addEventListener('click', function (e) {
@@ -101,7 +116,7 @@ window.App = window.App || {};
       } else if (act === 'clear-demo') {
         App.ui.confirm({
           title: '清空示例数据？',
-          text: '会删掉所有示例流水和存钱记录，然后从零开始。',
+          text: '会删掉所有示例流水和固定收支，然后从零开始。',
           okText: '清空',
           danger: true
         }).then(function (ok) {
@@ -126,7 +141,6 @@ window.App = window.App || {};
           label: '编辑这笔',
           icon: 'i-edit',
           onClick: function () {
-            App.switchTab('ledger');
             App.views.ledger.editRecord(rec.id);
           }
         },
@@ -161,24 +175,18 @@ window.App = window.App || {};
     if (ym > cur) ym = cur;
 
     var sum = C.summary(ym);
-    renderMonthBar();
     renderEmptyGuide();
     renderHero(sum);
     renderStats(sum);
     renderBudget();
     renderPending();
+    renderCalendar();
+    renderCatRank();
     renderTrend();
-    renderRecent();
     renderTip();
   }
 
-  function renderMonthBar() {
-    App.ui.monthBar(els.monthBar, ym, function (d) {
-      ym = U.shiftYm(ym, d);
-      App.refresh();
-    });
-  }
-
+  /* ---------- 新手引导（没有任何数据时） ---------- */
   function renderEmptyGuide() {
     if (A.hasAnyData()) {
       els.empty.innerHTML = '';
@@ -196,6 +204,7 @@ window.App = window.App || {};
       '</div>';
   }
 
+  /* ---------- 结余大卡 ---------- */
   function renderHero(sum) {
     var neg = sum.net < 0;
     els.hero.innerHTML =
@@ -214,28 +223,30 @@ window.App = window.App || {};
       '</div>';
   }
 
+  /* ---------- 收支三宫格：本月 / 今日 / 本年 ---------- */
   function renderStats(sum) {
-    var prevYm = U.shiftYm(ym, -1);
-    var bal = C.savingsBalanceAt(ym);
-    var delta = bal - C.savingsBalanceAt(prevYm);
+    var today = U.todayStr();
+    var year = ym.slice(0, 4);
+    var todaySum = C.summaryBetween(today, today);
+    var yearSum = C.summaryBetween(year + '-01-01', year + '-12-31');
 
-    function cell(label, icon, value, sub, cls) {
-      return '<div class="stat ' + (cls || '') + '">' +
-        '<div class="st-label">' + U.ico(icon) + label + '</div>' +
-        '<div class="st-val" title="¥' + U.money(value) + '">' + U.moneyShort(value) + '</div>' +
-        '<div class="st-sub">' + sub + '</div>' +
+    function cell(label, s) {
+      return '<div class="stat pair">' +
+        '<div class="st-label">' + label + '</div>' +
+        '<div class="st-pair">' +
+          '<span class="st-in"><em>收</em>¥' + U.moneyShort(s.income) + '</span>' +
+          '<span class="st-out"><em>支</em>¥' + U.moneyShort(s.expense) + '</span>' +
+        '</div>' +
       '</div>';
     }
 
     els.stats.innerHTML =
-      cell('收入', 'i-download', sum.income,
-        sum.income ? (ym === U.currentYm() ? '本月进账' : '当月进账') : '还没记收入', 'income') +
-      cell('支出', 'i-upload', sum.expense, sum.expCount ? sum.expCount + ' 笔开销' : '还没记支出', 'expense') +
-      cell('存款', 'i-piggy', bal,
-        delta === 0 ? '和上月持平' : (delta > 0 ? '比上月 +' : '比上月 -') + '¥' + U.money(Math.abs(delta)),
-        'net');
+      cell(ym === U.currentYm() ? '本月收支' : '当月收支', sum) +
+      cell('今日收支', todaySum) +
+      cell('本年收支', yearSum);
   }
 
+  /* ---------- 预算进度 ---------- */
   function renderBudget() {
     var b = C.budget(ym);
     if (!b) { els.budget.innerHTML = ''; return; }
@@ -257,6 +268,7 @@ window.App = window.App || {};
       '</div>';
   }
 
+  /* ---------- 待记入的固定收支 ---------- */
   function renderPending() {
     var list = C.pendingFixed(ym);
     if (!list.length) { els.pending.innerHTML = ''; return; }
@@ -275,43 +287,288 @@ window.App = window.App || {};
       '</div>';
   }
 
-  function renderTrend() {
-    var data = C.trend(ym, 6);
-    els.trend.innerHTML =
-      '<div class="card-head">' +
-        '<h2>近 6 个月收支</h2>' +
-        '<span class="head-sub">点柱子切换月份</span>' +
-      '</div>' +
-      '<div class="chart-box">' + App.chart.barChart(data, { activeYm: ym }) + '</div>' +
-      '<div class="chart-legend">' +
-        '<span><i style="background:#8FD0B8"></i>收入</span>' +
-        '<span><i style="background:#F3B3A2"></i>支出</span>' +
-      '</div>';
+  /* ---------- 本月花在哪：环形图 + 分类排行 ---------- */
+  /* 环形图与排名条共用：按金额排名依次取色（支出最多 8 类，色板一一对应） */
+  var CAT_COLORS = [
+    '#DE7A6A', '#F0B36A', '#8FD0B8', '#9FB8E8',
+    '#C9A2D8', '#7FC8C0', '#E6A9B8', '#B8B08A'
+  ];
+
+  /* 排行榜里的金额：不带千分位，整数不补 .00 */
+  function amtText(fen) {
+    return U.money(fen).replace(/\.00$/, '');
   }
 
-  function renderRecent() {
-    var list = C.recordsOf(ym, 'expense').slice(-5).reverse();
-
-    var body;
+  function renderCatRank() {
+    var list = C.catBreakdown(ym, 'expense');
     if (!list.length) {
-      body = '<div class="empty">这个月还没有支出，清清爽爽。</div>';
-    } else {
-      body = list.map(function (r) {
-        var c = U.cat('expense', r.categoryId);
-        return '<button class="rec" type="button" data-id="' + U.esc(r.id) + '">' +
-          '<span class="rec-ico">' + U.ico(c.icon) + '</span>' +
-          '<span class="rec-main">' +
-            '<span class="rec-title">' + U.esc(r.note || c.name) + '</span>' +
-            '<span class="rec-meta">' + U.esc(c.name) + ' · ' + U.esc(U.relDay(r.date)) + '</span>' +
-          '</span>' +
-          '<span class="rec-amt neg">-¥' + U.money(r.amount) + '</span>' +
-        '</button>';
+      els.catRank.innerHTML = '';
+      return;
+    }
+
+    var total = C.summary(ym).expense;
+    var max = list[0].amount || 1;
+    var current = ym === U.currentYm();
+
+    // 取整后把误差补回第一名，保证所有百分比加起来是 100%
+    var pcts = list.map(function (x) { return Math.round(x.pct); });
+    var pctSum = 0;
+    pcts.forEach(function (v) { pctSum += v; });
+    if (list.length > 1 && pctSum !== 100) pcts[0] += 100 - pctSum;
+
+    var rows = list.map(function (x, i) {
+      var pct = pcts[i];
+      var barW = i === 0 ? 100 : U.clamp(Math.round((x.amount / max) * 100), 3, 100);
+      var color = CAT_COLORS[i % CAT_COLORS.length];
+      return '<button class="cr-row" type="button" data-cat="' + U.esc(x.cat.id) + '" ' +
+          'aria-label="' + U.esc(x.cat.name + ' ¥' + amtText(x.amount) + '，占支出 ' + pct + '%，点击查看明细') + '">' +
+        '<span class="cr-top">' +
+          '<span class="cr-rank">' + (i + 1) + '</span>' +
+          '<span class="cr-ico">' + U.ico(x.cat.icon) + '</span>' +
+          '<span class="cr-name">' + U.esc(x.cat.name) + '</span>' +
+          '<span class="cr-amt">¥' + amtText(x.amount) + '</span>' +
+          '<span class="cr-pct">' + pct + '%</span>' +
+        '</span>' +
+        '<span class="cr-bar"><i data-w="' + barW + '" style="width:0;background:' + color + '"></i></span>' +
+      '</button>';
+    }).join('');
+
+    var donutData = list.map(function (x, i) {
+      return { label: x.cat.name, value: x.amount, color: CAT_COLORS[i % CAT_COLORS.length] };
+    });
+    var donutSvg = App.chart.donut(donutData, {
+      centerLabel: (current ? '本月支出' : '当月支出'),
+      centerValue: '¥' + U.moneyShort(total)
+    });
+
+    els.catRank.innerHTML =
+      '<div class="card cat-rank">' +
+        '<div class="card-head">' +
+          '<h2>' + (current ? '本月花在哪' : '当月花在哪') + '</h2>' +
+          '<span class="head-sub">' + list.length + ' 类 · ¥' + U.money(total) + '</span>' +
+        '</div>' +
+        '<div class="cr-donut"><div class="cr-donut-box">' + donutSvg + '</div></div>' +
+        '<div class="cr-list">' + rows + '</div>' +
+      '</div>';
+
+    requestAnimationFrame(function () {
+      var bars = els.catRank.querySelectorAll('.cr-bar i');
+      Array.prototype.forEach.call(bars, function (bar) {
+        bar.style.width = (bar.getAttribute('data-w') || 0) + '%';
+      });
+    });
+  }
+
+  /* 点分类：该分类当月的每一笔（可继续进入单笔操作） */
+  function openCatDetail(catId) {
+    var cat = U.cat('expense', catId);
+    var list = C.recordsOf(ym, 'expense').filter(function (r) { return r.categoryId === catId; });
+    if (!list.length) return;
+
+    var sum = U.sum(list, function (r) { return r.amount; });
+    var total = C.summary(ym).expense;
+    var pct = total > 0 ? Math.round((sum / total) * 100) : 0;
+
+    var rows = list.slice().reverse().map(function (r) {
+      return '<button class="rec" type="button" data-rec="' + U.esc(r.id) + '">' +
+        '<span class="rec-ico">' + U.ico(cat.icon) + '</span>' +
+        '<span class="rec-main">' +
+          '<span class="rec-title">' + U.esc(r.note || cat.name) + '</span>' +
+          '<span class="rec-meta">' + U.esc(U.relDay(r.date)) + ' ' + U.esc(U.weekdayCn(r.date)) + '</span>' +
+        '</span>' +
+        '<span class="rec-amt neg">-¥' + U.money(r.amount) + '</span>' +
+      '</button>';
+    }).join('');
+
+    var s = App.ui.sheet({
+      title: cat.name + ' · 共 ' + list.length + ' 笔',
+      html: '<p class="act-sub">¥' + U.money(sum) + ' · 占' + (ym === U.currentYm() ? '本月' : '当月') +
+        '支出 ' + pct + '%</p>' +
+        '<div class="cat-detail">' + rows + '</div>'
+    });
+
+    s.body.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-rec]');
+      if (!row) return;
+      var id = row.getAttribute('data-rec');
+      var rec = S.state.records.filter(function (r) { return r.id === id; })[0];
+      if (!rec) return;
+      s.close();
+      setTimeout(function () { openRecord(rec); }, 240);   // 等面板收回去再开下一个，避免叠加
+    });
+  }
+
+  /* ---------- 收支趋势（可选范围） ---------- */
+  function trendBounds() {
+    var r = C.recordYmRange();
+    var cur = U.currentYm();
+    var from = trendFrom;
+    var to = trendTo;
+
+    if (!from || !to) {
+      to = cur;
+      from = U.shiftYm(cur, -11);
+    }
+    if (from < r.min) from = r.min;
+    if (to > cur) to = cur;
+    if (from > to) to = from;
+
+    return { from: from, to: to, min: r.min, max: cur };
+  }
+
+  function renderTrend() {
+    var b = trendBounds();
+    var months = C.monthRange(b.min, b.max);
+    var data = C.trendRange(b.from, b.to);
+
+    function options(sel) {
+      return months.map(function (m) {
+        return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + U.esc(U.ymLabel(m)) + '</option>';
       }).join('');
     }
 
-    els.recent.innerHTML = '<div class="card-head"><h2>最近 5 笔支出</h2></div>' + body;
+    var rangeText = b.from === b.to
+      ? U.ymLabel(b.from)
+      : (b.from.slice(0, 4) !== b.to.slice(0, 4)
+        ? U.ymLabel(b.from) + ' - ' + U.ymLabel(b.to)
+        : U.ymShort(b.from) + ' - ' + U.ymShort(b.to));
+
+    els.trend.innerHTML =
+      '<div class="card-head">' +
+        '<h2>收支趋势</h2>' +
+        '<span class="head-sub">' + rangeText + ' · ' + data.length + ' 个月</span>' +
+      '</div>' +
+      '<div class="trend-range">' +
+        '<label class="tr-field"><span>从</span>' +
+          '<select id="trendFrom" aria-label="起始月份">' + options(b.from) + '</select></label>' +
+        '<label class="tr-field"><span>到</span>' +
+          '<select id="trendTo" aria-label="结束月份">' + options(b.to) + '</select></label>' +
+      '</div>' +
+      '<div class="chart-box">' + App.chart.trendAreaChart(data) + '</div>' +
+      '<div class="chart-legend">' +
+        '<span><i style="background:#3E8E77"></i>收入</span>' +
+        '<span><i style="background:#DE7A6A"></i>支出</span>' +
+      '</div>';
   }
 
+  /* ---------- 每日收支日历 ---------- */
+  var WEEK_HEADS = ['一', '二', '三', '四', '五', '六', '日'];
+
+  /* 日历格子里的紧凑金额：整数元，超过 1 万按「万」 */
+  function dayMoney(fen) {
+    var yuan = fen / 100;
+    if (yuan >= 10000) {
+      var w = yuan / 10000;
+      return (w >= 10 ? Math.round(w) : Math.round(w * 10) / 10) + '万';
+    }
+    return String(Math.round(yuan));
+  }
+
+  /* 一次遍历聚合出每天的收入 / 支出 / 笔数 */
+  function dayStats(m) {
+    var map = {};
+    C.recordsOf(m).forEach(function (r) {
+      var d = map[r.date] || (map[r.date] = { income: 0, expense: 0, count: 0 });
+      if (r.type === 'income') d.income += r.amount;
+      else d.expense += r.amount;
+      d.count++;
+    });
+    return map;
+  }
+
+  function renderCalendar() {
+    var days = U.daysInYm(ym);
+    var y = parseInt(ym.slice(0, 4), 10);
+    var mo = parseInt(ym.slice(5, 7), 10);
+    var lead = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // 周一为一周起点
+    var today = U.todayStr();
+    var map = dayStats(ym);
+
+    var cells = '';
+    for (var i = 0; i < lead; i++) cells += '<span class="cal-day is-blank"></span>';
+
+    for (var d = 1; d <= days; d++) {
+      var date = ym + '-' + U.pad2(d);
+      var st = map[date];
+      var cls = 'cal-day';
+      if (date === today) cls += ' is-today';
+      else if (date > today) cls += ' is-future';
+      if (st) cls += ' has-data';
+
+      var inner = '<span class="cal-num">' + d + '</span>';
+      if (st) {
+        if (st.expense) inner += '<span class="cal-val out">-' + dayMoney(st.expense) + '</span>';
+        if (st.income) inner += '<span class="cal-val in">+' + dayMoney(st.income) + '</span>';
+      }
+
+      if (st) {
+        cells += '<button class="' + cls + '" type="button" data-date="' + date + '" aria-label="' +
+          U.esc(U.mdLabel(date) + '，支出 ¥' + U.money(st.expense) + '，收入 ¥' + U.money(st.income) +
+            '，共 ' + st.count + ' 笔，点击查看明细') + '">' + inner + '</button>';
+      } else {
+        cells += '<span class="' + cls + '">' + inner + '</span>';
+      }
+    }
+
+    els.calendar.innerHTML =
+      '<div class="card cal-card">' +
+        '<div class="card-head">' +
+          '<h2>' + (ym === U.currentYm() ? '本月每日收支' : '当月每日收支') + '</h2>' +
+          '<span class="head-sub">点有记录的日期看明细</span>' +
+        '</div>' +
+        '<div class="cal-week">' +
+          WEEK_HEADS.map(function (w) { return '<span class="cal-wd">' + w + '</span>'; }).join('') +
+        '</div>' +
+        '<div class="cal-grid">' + cells + '</div>' +
+      '</div>';
+  }
+
+  /* 点日历某天：当天全部流水（收入 + 支出） */
+  function openDayDetail(date) {
+    var list = C.recordsOf(ym).filter(function (r) { return r.date === date; });
+    if (!list.length) return;
+
+    var income = 0, expense = 0;
+    list.forEach(function (r) {
+      if (r.type === 'income') income += r.amount;
+      else expense += r.amount;
+    });
+
+    var parts = [];
+    if (expense) parts.push('支出 ¥' + U.money(expense));
+    if (income) parts.push('收入 ¥' + U.money(income));
+
+    var rows = list.slice().reverse().map(function (r) {
+      var c = U.cat(r.type, r.categoryId);
+      return '<button class="rec" type="button" data-rec="' + U.esc(r.id) + '">' +
+        '<span class="rec-ico' + (r.type === 'income' ? ' income' : '') + '">' + U.ico(c.icon) + '</span>' +
+        '<span class="rec-main">' +
+          '<span class="rec-title">' + U.esc(r.note || c.name) + '</span>' +
+          '<span class="rec-meta">' + U.esc(c.name) + '</span>' +
+        '</span>' +
+        '<span class="rec-amt ' + (r.type === 'income' ? 'pos' : 'neg') + '">' +
+          (r.type === 'income' ? '+' : '-') + '¥' + U.money(r.amount) + '</span>' +
+      '</button>';
+    }).join('');
+
+    var s = App.ui.sheet({
+      title: U.mdLabel(date) + ' ' + U.weekdayCn(date) + ' · ' + list.length + ' 笔',
+      html: '<p class="act-sub">' + parts.join(' · ') + '</p>' +
+        '<div class="cat-detail">' + rows + '</div>'
+    });
+
+    s.body.addEventListener('click', function (e) {
+      var row = e.target.closest('[data-rec]');
+      if (!row) return;
+      var id = row.getAttribute('data-rec');
+      var rec = S.state.records.filter(function (r) { return r.id === id; })[0];
+      if (!rec) return;
+      s.close();
+      setTimeout(function () { openRecord(rec); }, 240);   // 等面板收回去再开下一个，避免叠加
+    });
+  }
+
+  /* ---------- 底部提示条（示例数据 / 备份提醒） ---------- */
   function renderTip() {
     var st = S.state;
     var html = '';
@@ -350,12 +607,20 @@ window.App = window.App || {};
 
   function getYm() { return ym; }
 
+  function setYm(next) {
+    var cur = U.currentYm();
+    if (!U.isYm(next) || next > cur) return;
+    if (next < C.recordYmRange().min) return;
+    ym = next;
+  }
+
   App.views = App.views || {};
   App.views.home = {
     init: init,
     render: render,
     syncMonth: syncMonth,
     resetMonth: resetMonth,
-    getYm: getYm
+    getYm: getYm,
+    setYm: setYm
   };
 })(window.App);

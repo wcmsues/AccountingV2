@@ -1,6 +1,6 @@
 /* =========================================================
    小账本 · 计算层
-   纯读取：月度汇总 / 分类聚合 / 趋势 / 目标进度 / 固定收支状态
+   纯读取：月度汇总 / 区间汇总 / 分类聚合 / 趋势 / 固定收支状态
    ========================================================= */
 window.App = window.App || {};
 (function (App) {
@@ -44,16 +44,19 @@ window.App = window.App || {};
   function catBreakdown(ym, type) {
     type = type || 'expense';
     var map = {};
+    var count = {};
     var total = 0;
     recordsOf(ym, type).forEach(function (r) {
       map[r.categoryId] = (map[r.categoryId] || 0) + r.amount;
+      count[r.categoryId] = (count[r.categoryId] || 0) + 1;
       total += r.amount;
     });
     return Object.keys(map).map(function (id) {
       return {
         cat: U.cat(type, id),
         amount: map[id],
-        pct: total > 0 ? (map[id] / total) * 100 : 0
+        pct: total > 0 ? (map[id] / total) * 100 : 0,
+        count: count[id] || 0
       };
     }).sort(function (a, b) { return b.amount - a.amount; });
   }
@@ -64,11 +67,49 @@ window.App = window.App || {};
     return out;
   }
 
-  function trend(ym, n) {
-    return monthList(ym, n || 6).map(function (m) {
+  /* 起止月份之间（含两端）的月份列表 */
+  function monthRange(fromYm, toYm) {
+    if (!U.isYm(fromYm) || !U.isYm(toYm) || fromYm > toYm) return [];
+    var out = [];
+    var m = fromYm;
+    var guard = 0;
+    while (m <= toYm && guard++ < 600) {
+      out.push(m);
+      m = U.shiftYm(m, 1);
+    }
+    return out;
+  }
+
+  /* 可选范围内每月的收入 / 支出 / 结余 */
+  function trendRange(fromYm, toYm) {
+    return monthRange(fromYm, toYm).map(function (m) {
       var s = summary(m);
-      return { ym: m, label: U.ymShort(m), income: s.income, expense: s.expense };
+      return { ym: m, label: U.ymShort(m), income: s.income, expense: s.expense, net: s.net };
     });
+  }
+
+  /* 有流水的最早月份；最晚月份至少到当月 */
+  function recordYmRange() {
+    var min = null;
+    st().records.forEach(function (r) {
+      var m = U.ymOf(r.date);
+      if (U.isYm(m) && (!min || m < min)) min = m;
+    });
+    var cur = U.currentYm();
+    if (!min) min = cur;
+    return { min: min, max: cur };
+  }
+
+  /* 任意日期区间内的收入 / 支出汇总（含两端） */
+  function summaryBetween(fromDs, toDs) {
+    var income = 0, expense = 0, count = 0, expCount = 0;
+    st().records.forEach(function (r) {
+      if (r.date < fromDs || r.date > toDs) return;
+      count++;
+      if (r.type === 'income') income += r.amount;
+      else { expense += r.amount; expCount++; }
+    });
+    return { income: income, expense: expense, net: income - expense, count: count, expCount: expCount };
   }
 
   /* 按日分组（日期倒序，组内最新在前） */
@@ -88,112 +129,6 @@ window.App = window.App || {};
       g.items.sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
     });
     return out;
-  }
-
-  function groupSavingsByDay(list) {
-    var map = {}, out = [];
-    list.forEach(function (r) {
-      if (!map[r.date]) {
-        map[r.date] = { date: r.date, inSum: 0, outSum: 0, items: [] };
-        out.push(map[r.date]);
-      }
-      map[r.date].items.push(r);
-      if (r.type === 'in') map[r.date].inSum += r.amount;
-      else map[r.date].outSum += r.amount;
-    });
-    out.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-    return out;
-  }
-
-  /* ---------- 存款 / 存钱目标 ---------- */
-  function savingsBalance() {
-    var s = st();
-    var t = s.settings.startBalance;
-    s.savings.forEach(function (x) {
-      t += x.type === 'in' ? x.amount : -x.amount;
-    });
-    return t;
-  }
-
-  function savingsBalanceAt(ym) {
-    var s = st();
-    var end = ym + '-31';
-    var t = s.settings.startBalance;
-    s.savings.forEach(function (x) {
-      if (x.date <= end) t += x.type === 'in' ? x.amount : -x.amount;
-    });
-    return t;
-  }
-
-  function savingsSummary(ym) {
-    var s = st();
-    var inM = 0, outM = 0, inAll = 0, outAll = 0;
-    s.savings.forEach(function (x) {
-      if (x.type === 'in') {
-        inAll += x.amount;
-        if (U.ymOf(x.date) === ym) inM += x.amount;
-      } else {
-        outAll += x.amount;
-        if (U.ymOf(x.date) === ym) outM += x.amount;
-      }
-    });
-    return {
-      monthIn: inM, monthOut: outM,
-      totalIn: inAll, totalOut: outAll,
-      balance: s.settings.startBalance + inAll - outAll
-    };
-  }
-
-  function savingsSeries(ym, n) {
-    return monthList(ym, n || 6).map(function (m) {
-      return { ym: m, label: U.ymShort(m), value: savingsBalanceAt(m) };
-    });
-  }
-
-  function goalProgress() {
-    var s = st();
-    var g = s.goal;
-    if (!g) return null;
-
-    var total = savingsBalance();
-    var saved = Math.max(0, total - (g.baseline || 0));
-    var target = g.targetAmount;
-    var achieved = saved >= target;
-    var remaining = Math.max(0, target - saved);
-    var pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
-
-    var net3 = 0;
-    monthList(U.currentYm(), 3).forEach(function (m) {
-      var ss = savingsSummary(m);
-      net3 += ss.monthIn - ss.monthOut;
-    });
-    var avg = net3 / 3;
-
-    var etaYm = null;
-    var etaText = '';
-    if (achieved) {
-      etaText = '继续保持这个节奏';
-    } else if (avg > 100) {
-      var need = Math.max(1, Math.ceil(remaining / avg));
-      etaYm = U.shiftYm(U.currentYm(), need);
-      etaText = '按近 3 个月节奏，预计 ' + U.ymLabel(etaYm) + ' 达成';
-    } else {
-      etaText = '近 3 个月还没存下钱，先从小目标开始';
-    }
-
-    return {
-      goal: g,
-      saved: saved,
-      target: target,
-      pct: pct,
-      remaining: remaining,
-      achieved: achieved,
-      avg: avg,
-      etaYm: etaYm,
-      etaText: etaText,
-      balance: total,
-      deadline: g.deadline
-    };
   }
 
   /* ---------- 固定收支 ---------- */
@@ -240,17 +175,14 @@ window.App = window.App || {};
   App.calc = {
     recordsOf: recordsOf,
     summary: summary,
+    summaryBetween: summaryBetween,
     avgDailyExpense: avgDailyExpense,
     catBreakdown: catBreakdown,
     monthList: monthList,
-    trend: trend,
+    monthRange: monthRange,
+    trendRange: trendRange,
+    recordYmRange: recordYmRange,
     groupByDay: groupByDay,
-    groupSavingsByDay: groupSavingsByDay,
-    savingsBalance: savingsBalance,
-    savingsBalanceAt: savingsBalanceAt,
-    savingsSummary: savingsSummary,
-    savingsSeries: savingsSeries,
-    goalProgress: goalProgress,
     fixedKey: fixedKey,
     fixedRecord: fixedRecord,
     fixedStatus: fixedStatus,

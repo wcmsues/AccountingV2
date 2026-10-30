@@ -6,16 +6,25 @@
   'use strict';
 
   var U = App.util;
+  var C = App.calc;
   var ST = App.store;
   var A = App.actions;
 
   var current = 'home';
-  var scrollPos = { home: 0, ledger: 0, savings: 0 };
+  var scrollPos = { home: 0, ledger: 0 };
   var lastYm = U.currentYm();
+  var els = {};
   var booted = false;
 
   /* ---------- 启动 ---------- */
+  function cacheEls() {
+    els.title = document.getElementById('pageTitle');
+    els.monthBtn = document.getElementById('monthPickBtn');
+    els.monthTxt = document.getElementById('monthPickTxt');
+  }
+
   function boot() {
+    cacheEls();
     if (booted) return;
     booted = true;
 
@@ -28,9 +37,9 @@
 
     App.views.home.init();
     App.views.ledger.init();
-    App.views.savings.init();
 
     bindTabs();
+    bindMonthPick();
     bindSettings();
 
     A.autoPostFixed();
@@ -71,10 +80,29 @@
     });
   }
 
+  /* 首页月份下拉日历（按钮在首页结余卡上方） */
+  function bindMonthPick() {
+    if (!els.monthBtn) return;
+    els.monthBtn.addEventListener('click', function () {
+      var r = C.recordYmRange();
+      els.monthBtn.classList.add('is-open');
+      App.ui.monthPopover(els.monthBtn, {
+        ym: App.views.home.getYm(),
+        min: r.min,
+        max: U.currentYm(),
+        onClose: function () { els.monthBtn.classList.remove('is-open'); },
+        onChange: function (target) {
+          App.views.home.setYm(target);
+          App.refresh();
+        }
+      });
+    });
+  }
+
   function switchTab(tab) {
     if (!tab) return;
     var page = document.querySelector('.page[data-page="' + tab + '"]');
-    if (!page) return;
+    if (!page || (tab !== 'home' && tab !== 'ledger')) return;
 
     if (tab !== current) {
       scrollPos[current] = window.scrollY || 0;
@@ -98,7 +126,7 @@
   /* iOS 上在元素隐藏（display:none）时写入的日期值可能不渲染，
      切回页面后重写一次，强制重绘日期文本 */
   function repaintDateInputs() {
-    ['dateInput', 'savingDate'].forEach(function (id) {
+    ['dateInput'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el || !el.value || document.activeElement === el) return;
       var v = el.value;
@@ -109,32 +137,17 @@
 
   /* ---------- 刷新 ---------- */
   function updateAppbar() {
-    var h1 = document.getElementById('pageTitle');
-    var sub = document.getElementById('pageSub');
-    if (!h1 || !sub) return;
+    if (!els.title || !els.monthBtn || !els.monthTxt) return;
 
-    if (current === 'home') {
-      var ym = App.views.home.getYm();
-      var s = App.calc.summary(ym);
-      h1.textContent = ym === U.currentYm() ? '本月' : U.ymLabel(ym);
-      sub.textContent = '收入 ¥' + U.money(s.income) + ' · 支出 ¥' + U.money(s.expense);
-    } else if (current === 'ledger') {
-      var sum = App.calc.summary(U.currentYm());
-      h1.textContent = '记账';
-      sub.textContent = '本月 ' + sum.count + ' 笔 · 支出 ¥' + U.money(sum.expense);
-    } else {
-      var g = App.calc.goalProgress();
-      h1.textContent = '存钱';
-      sub.textContent = g
-        ? '已存 ¥' + U.money(g.saved) + ' / 目标 ¥' + U.money(g.target)
-        : '当前存款 ¥' + U.money(App.calc.savingsBalance()) + ' · 还没设目标';
-    }
+    els.title.textContent = current === 'home' ? '首页' : '记账';
+
+    var ym = App.views.home.getYm();
+    els.monthTxt.textContent = U.ymLabel(ym);
   }
 
   function refresh() {
     if (current === 'home') App.views.home.render();
-    else if (current === 'ledger') App.views.ledger.render();
-    else App.views.savings.render();
+    else App.views.ledger.render();
 
     updateAppbar();
     showWarnings();
@@ -143,7 +156,6 @@
   function refreshAll() {
     App.views.home.render();
     App.views.ledger.render();
-    App.views.savings.render();
     updateAppbar();
     showWarnings();
   }
@@ -201,17 +213,11 @@
     var html =
       '<div class="set-group">' +
         '<h4>' + U.ico('i-wallet') + '基础设置</h4>' +
-        '<div class="field"><label>期初存款（元）</label>' +
-          '<div class="inp-wrap has-pre"><span class="pre">¥</span>' +
-            '<input id="setStart" type="number" step="0.01" inputmode="decimal" value="' +
-              (set.startBalance / 100).toFixed(2) + '"></div>' +
-          '<p class="hint">开始记账前已经有的存款，会计入当前存款，可为 0。</p>' +
-        '</div>' +
         '<div class="field"><label>每月支出预算（元）</label>' +
           '<div class="inp-wrap has-pre"><span class="pre">¥</span>' +
             '<input id="setBudget" type="number" min="0" step="1" inputmode="decimal" placeholder="留空或 0 表示不启用" value="' +
               (set.monthlyBudget ? (set.monthlyBudget / 100) : '') + '"></div>' +
-          '<p class="hint">只统计支出；存钱不算支出，不占预算。</p>' +
+          '<p class="hint">只统计支出，不启用就留空。</p>' +
         '</div>' +
       '</div>' +
       '<div class="set-group">' +
@@ -244,15 +250,7 @@
     var sheet = App.ui.sheet({ title: '设置', html: html });
     var body = sheet.body;
 
-    var startInp = body.querySelector('#setStart');
     var budgetInp = body.querySelector('#setBudget');
-
-    startInp.addEventListener('change', function () {
-      var v = Number(startInp.value);
-      if (!isFinite(v)) { startInp.value = (ST.state.settings.startBalance / 100).toFixed(2); return; }
-      A.setSetting('startBalance', Math.round(v * 100));
-      refreshAll();
-    });
 
     budgetInp.addEventListener('change', function () {
       var v = Number(budgetInp.value);
@@ -304,7 +302,7 @@
         sheet.close();
         App.ui.confirmType({
           title: '清空全部数据？',
-          text: '所有收支、固定收支、存钱记录、目标和设置都会删除，无法撤销。建议先导出备份。',
+          text: '所有收支、固定收支和设置都会删除，无法撤销。建议先导出备份。',
           expect: '删除'
         }).then(function (ok) {
           if (!ok) return;

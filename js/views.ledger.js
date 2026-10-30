@@ -13,7 +13,6 @@ window.App = window.App || {};
 
   var mode = 'expense';
   var catId = 'food';
-  var editingId = null;
   var locked = false;
   var fixedOpen = false;
   var bound = false;
@@ -27,7 +26,6 @@ window.App = window.App || {};
     els.note = document.getElementById('noteInput');
     els.date = document.getElementById('dateInput');
     els.save = document.getElementById('saveBtn');
-    els.cancel = document.getElementById('cancelEditBtn');
     els.stats = document.getElementById('ledgerStats');
     els.fixed = document.getElementById('fixedCard');
     els.detail = document.getElementById('detailCard');
@@ -60,12 +58,6 @@ window.App = window.App || {};
     });
 
     els.form.addEventListener('submit', onSubmit);
-    els.cancel.addEventListener('click', function () {
-      exitEdit();
-      els.amount.value = '';
-      els.note.value = '';
-      updateSaveState();
-    });
 
     els.fixed.addEventListener('click', function (e) {
       if (e.target.closest('[data-add-fixed]')) {
@@ -98,7 +90,7 @@ window.App = window.App || {};
     return null;
   }
 
-  /* ---------- 表单 ---------- */
+  /* ---------- 记一笔表单（只负责新增，修改走编辑弹窗） ---------- */
   function renderCats() {
     var list = U.cats(mode);
     var has = list.some(function (c) { return c.id === catId; });
@@ -116,8 +108,15 @@ window.App = window.App || {};
     });
     els.form.classList.toggle('mode-income', mode === 'income');
 
-    els.save.textContent = editingId ? '保存修改' : (mode === 'income' ? '记这笔收入' : '保存这笔');
-    els.cancel.hidden = !editingId;
+    els.save.textContent = mode === 'income' ? '记这笔收入' : '保存这笔';
+    els.note.placeholder = notePlaceholder(mode);
+  }
+
+  /* 备注框的示例文字跟着收支类型走 */
+  function notePlaceholder(type) {
+    return type === 'income'
+      ? '工资 / 年终奖 / 公积金…'
+      : '麦当劳 / 看电影 / 买衣服 / 狗粮…';
   }
 
   function updateSaveState() {
@@ -141,18 +140,10 @@ window.App = window.App || {};
     updateSaveState();
 
     try {
-      if (editingId) {
-        A.updateRecord(editingId, { type: mode, amount: amount, categoryId: catId, date: date, note: note });
-        App.ui.toast('已更新');
-        exitEdit();
-        els.amount.value = '';
-        els.note.value = '';
-      } else {
-        A.addRecord({ type: mode, amount: amount, categoryId: catId, date: date, note: note });
-        App.ui.toast('记好了 · ' + (mode === 'income' ? '+' : '-') + '¥' + U.money(amount));
-        els.amount.value = '';
-        els.note.value = '';
-      }
+      A.addRecord({ type: mode, amount: amount, categoryId: catId, date: date, note: note });
+      App.ui.toast('记好了 · ' + (mode === 'income' ? '+' : '-') + '¥' + U.money(amount));
+      els.amount.value = '';
+      els.note.value = '';
       els.amount.blur();
       if (U.ymOf(date) !== U.currentYm()) {
         App.ui.toast('已记入 ' + U.ymLabel(U.ymOf(date)));
@@ -167,28 +158,130 @@ window.App = window.App || {};
     App.refreshAll();
   }
 
-  function exitEdit() {
-    editingId = null;
-    els.cancel.hidden = true;
-    els.save.textContent = mode === 'income' ? '记这笔收入' : '保存这笔';
-    renderCats();
-  }
-
+  /* ---------- 编辑弹窗 ---------- */
   function editRecord(id) {
     var rec = findRecord(id);
-    if (!rec) return;
-    editingId = rec.id;
-    mode = rec.type;
-    catId = rec.categoryId;
-    els.amount.value = U.yuanInput(rec.amount);
-    els.note.value = rec.note || '';
-    els.date.value = rec.date;
-    renderCats();
-    updateSaveState();
+    if (rec) openEditSheet(rec);
+  }
+
+  function openEditSheet(rec) {
+    var m = rec.type;
+    var selCat = rec.categoryId;
+
+    var html =
+      '<form class="entry-card edit-sheet' + (m === 'income' ? ' mode-income' : '') + '" id="editForm" autocomplete="off" novalidate>' +
+        '<div class="seg" id="editTypeSeg">' +
+          '<button type="button" class="seg-item' + (m === 'expense' ? ' is-active' : '') + '" data-type="expense">支出</button>' +
+          '<button type="button" class="seg-item' + (m === 'income' ? ' is-active' : '') + '" data-type="income">收入</button>' +
+        '</div>' +
+        '<div class="amount-box">' +
+          '<span class="amount-cur">¥</span>' +
+          '<input class="amount-input" id="editAmount" type="text" inputmode="decimal" placeholder="0.00" ' +
+            'aria-label="金额" maxlength="12" value="' + U.yuanInput(rec.amount) + '">' +
+        '</div>' +
+        '<div class="cat-grid" id="editCatGrid"></div>' +
+        '<div class="entry-meta">' +
+          '<label class="meta-field">' +
+            '<span class="meta-label">备注</span>' +
+            '<input id="editNote" type="text" maxlength="40" placeholder="' +
+              U.esc(notePlaceholder(rec.type)) + '" value="' + U.esc(rec.note || '') + '">' +
+          '</label>' +
+          '<label class="meta-field date-field">' +
+            '<span class="meta-label">日期</span>' +
+            '<input id="editDate" type="date" value="' + U.esc(rec.date) + '">' +
+          '</label>' +
+        '</div>' +
+        '<div class="entry-actions">' +
+          '<button class="btn ghost" type="button" data-edit-close>取消</button>' +
+          '<button class="btn primary" type="submit" id="editSave">保存修改</button>' +
+        '</div>' +
+      '</form>';
+
+    var s = App.ui.sheet({ title: '编辑这笔', html: html });
+    var body = s.body;
+    var form = body.querySelector('#editForm');
+    var seg = body.querySelector('#editTypeSeg');
+    var grid = body.querySelector('#editCatGrid');
+    var amountInp = body.querySelector('#editAmount');
+    var noteInp = body.querySelector('#editNote');
+    var dateInp = body.querySelector('#editDate');
+    var saveBtn = body.querySelector('#editSave');
+
+    App.ui.bindAmountInput(amountInp);
+
+    function renderSheetCats() {
+      var list = U.cats(m);
+      var has = list.some(function (c) { return c.id === selCat; });
+      if (!has) selCat = list[0].id;
+
+      grid.innerHTML = list.map(function (c) {
+        return '<button class="cat' + (c.id === selCat ? ' is-active' : '') + '" type="button" data-edit-cat="' + c.id + '">' +
+          '<span class="cat-ico">' + U.ico(c.icon) + '</span>' +
+          '<span class="cat-name">' + U.esc(c.name) + '</span>' +
+        '</button>';
+      }).join('');
+
+      seg.querySelectorAll('[data-type]').forEach(function (b) {
+        b.classList.toggle('is-active', b.getAttribute('data-type') === m);
+      });
+      form.classList.toggle('mode-income', m === 'income');
+      noteInp.placeholder = notePlaceholder(m);
+    }
+
+    function syncSave() {
+      saveBtn.disabled = !U.parseAmount(amountInp.value);
+    }
+
+    seg.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-type]');
+      if (!btn) return;
+      var t = btn.getAttribute('data-type');
+      if (t === m) return;
+      m = t;
+      selCat = U.cats(m)[0].id;
+      renderSheetCats();
+    });
+
+    grid.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-edit-cat]');
+      if (!btn) return;
+      selCat = btn.getAttribute('data-edit-cat');
+      renderSheetCats();
+    });
+
+    amountInp.addEventListener('input', syncSave);
+    body.querySelector('[data-edit-close]').onclick = s.close;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var amount = U.parseAmount(amountInp.value);
+      if (!amount) {
+        App.ui.toast('先填一个有效的金额');
+        amountInp.focus();
+        return;
+      }
+
+      var date = U.isDate(dateInp.value) ? dateInp.value : rec.date;
+      A.updateRecord(rec.id, {
+        type: m,
+        amount: amount,
+        categoryId: selCat,
+        date: date,
+        note: noteInp.value.trim()
+      });
+
+      s.close();
+      App.refreshAll();
+      App.ui.toast('已更新');
+    });
+
+    renderSheetCats();
+    syncSave();
+
     setTimeout(function () {
-      els.amount.focus();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 120);
+      amountInp.focus();
+      try { amountInp.setSelectionRange(0, amountInp.value.length); } catch (err) { /* ignore */ }
+    }, 280);
   }
 
   function openRecord(rec) {
@@ -395,7 +488,7 @@ window.App = window.App || {};
 
   function openFixedForm(item) {
     var isNew = !item;
-    var it = item || { type: 'expense', name: '', amount: 0, categoryId: 'home', day: 1 };
+    var it = item || { type: 'expense', name: '', amount: 0, categoryId: 'daily', day: 1 };
     var typeState = it.type;
 
     function catOptions(type, selected) {

@@ -18,7 +18,7 @@ window.App = window.App || {};
 
   function hasAnyData() {
     var s = st();
-    return s.records.length > 0 || s.savings.length > 0 || s.fixedItems.length > 0 || !!s.goal;
+    return s.records.length > 0 || s.fixedItems.length > 0;
   }
 
   /* ---------- 收支流水 ---------- */
@@ -231,130 +231,6 @@ window.App = window.App || {};
     return added;
   }
 
-  /* ---------- 存钱 ---------- */
-  function addSaving(input) {
-    var amount = Math.round(Number(input.amount));
-    if (!isFinite(amount) || amount <= 0) return null;
-    var item = {
-      id: U.uid('sv'),
-      type: input.type === 'out' ? 'out' : 'in',
-      amount: amount,
-      date: U.isDate(input.date) ? input.date : U.todayStr(),
-      note: String(input.note || '').trim().slice(0, 30),
-      createdAt: U.nowIso()
-    };
-    st().savings.push(item);
-    syncGoal();
-    save();
-    return item;
-  }
-
-  function removeSaving(id) {
-    var list = st().savings;
-    var found = null;
-    st().savings = list.filter(function (x) {
-      if (x.id === id) { found = x; return false; }
-      return true;
-    });
-    if (!found) return null;
-    syncGoal();
-    save();
-    return found;
-  }
-
-  function restoreSaving(item) {
-    if (!item) return false;
-    st().savings.push(item);
-    syncGoal();
-    save();
-    return true;
-  }
-
-  /* ---------- 存钱目标 ---------- */
-  function syncGoal() {
-    var s = st();
-    if (!s.goal) return;
-    var p = App.calc.goalProgress();
-    if (!p) return;
-    if (p.achieved && s.goal.status !== 'achieved') {
-      s.goal.status = 'achieved';
-      s.goal.achievedAt = U.nowIso();
-    } else if (!p.achieved && s.goal.status === 'achieved') {
-      s.goal.status = 'active';
-      s.goal.achievedAt = null;
-    }
-  }
-
-  function setGoal(input) {
-    var target = Math.round(Number(input.targetAmount));
-    if (!isFinite(target) || target <= 0) return null;
-    var s = st();
-    s.goal = {
-      id: U.uid('g'),
-      name: String(input.name || '存钱目标').trim().slice(0, 20) || '存钱目标',
-      targetAmount: target,
-      baseline: input.fromNow ? App.calc.savingsBalance() : 0,
-      deadline: U.isDate(input.deadline) ? input.deadline : null,
-      status: 'active',
-      achievedAt: null,
-      createdAt: U.nowIso()
-    };
-    syncGoal();
-    save();
-    return s.goal;
-  }
-
-  function adjustGoal(targetAmount) {
-    var s = st();
-    if (!s.goal) return null;
-    var target = Math.round(Number(targetAmount));
-    if (!isFinite(target) || target <= 0) return null;
-    s.goal.targetAmount = target;
-    if (s.goal.status === 'achieved' && App.calc.goalProgress() && !App.calc.goalProgress().achieved) {
-      s.goal.status = 'active';
-      s.goal.achievedAt = null;
-    }
-    syncGoal();
-    save();
-    return s.goal;
-  }
-
-  function updateGoal(patch) {
-    var s = st();
-    if (!s.goal) return null;
-    if (patch.name != null) {
-      var n = String(patch.name).trim();
-      if (n) s.goal.name = n.slice(0, 20);
-    }
-    if (patch.targetAmount != null) {
-      var t = Math.round(Number(patch.targetAmount));
-      if (isFinite(t) && t > 0) s.goal.targetAmount = t;
-    }
-    if (patch.deadline === null) s.goal.deadline = null;
-    else if (U.isDate(patch.deadline)) s.goal.deadline = patch.deadline;
-    syncGoal();
-    save();
-    return s.goal;
-  }
-
-  function resetGoal(input) {
-    var s = st();
-    if (s.goal) {
-      var p = App.calc.goalProgress();
-      s.goalHistory.unshift({
-        id: s.goal.id,
-        name: s.goal.name,
-        targetAmount: s.goal.targetAmount,
-        baseline: s.goal.baseline,
-        status: s.goal.status,
-        achievedAt: s.goal.achievedAt,
-        savedAmount: p ? p.saved : 0,
-        archivedAt: U.nowIso()
-      });
-    }
-    return setGoal(input);
-  }
-
   /* ---------- 设置 ---------- */
   function setSetting(key, value) {
     var s = st();
@@ -391,7 +267,7 @@ window.App = window.App || {};
     var now = U.nowIso();
     var ymNow = U.currentYm();
     var todayDay = parseInt(U.todayStr().slice(8, 10), 10);
-    var startYm = U.shiftYm(ymNow, -5);
+    var startYm = U.shiftYm(ymNow, -11);
 
     var s = {
       version: 2,
@@ -399,45 +275,32 @@ window.App = window.App || {};
       settings: { startBalance: 800000, monthlyBudget: 700000, autoPostFixed: 'due' },
       records: [],
       fixedItems: [
-        { id: 'demo_rent', type: 'expense', name: '房租', amount: 500000, categoryId: 'home', day: 5, enabled: true, startMonth: startYm, endMonth: null },
-        { id: 'demo_util', type: 'expense', name: '水电网', amount: 26000, categoryId: 'home', day: 12, enabled: true, startMonth: startYm, endMonth: null },
+        { id: 'demo_rent', type: 'expense', name: '房租', amount: 500000, categoryId: 'daily', day: 5, enabled: true, startMonth: startYm, endMonth: null },
+        { id: 'demo_util', type: 'expense', name: '水电网', amount: 26000, categoryId: 'daily', day: 12, enabled: true, startMonth: startYm, endMonth: null },
         { id: 'demo_sub', type: 'expense', name: '宽带 + 会员', amount: 9900, categoryId: 'fun', day: 18, enabled: true, startMonth: startYm, endMonth: null },
         { id: 'demo_salary', type: 'income', name: '工资', amount: 1000000, categoryId: 'salary', day: 10, enabled: true, startMonth: startYm, endMonth: null }
       ],
-      savings: [],
-      goal: {
-        id: 'demo_goal',
-        name: 'MacBookPro',
-        targetAmount: 1600000,
-        baseline: 0,
-        deadline: '2027-06-30',
-        status: 'active',
-        achievedAt: null,
-        createdAt: now
-      },
-      goalHistory: [],
       suppressedFixed: {}
     };
 
     var notes = {
       food: ['麦当劳', '瑞幸', '探鱼', '巴比馒头', 'DQ冰淇淋', '喜茶', '水果'],
       daily: ['盒马', '纸巾', '洗衣液', '牙膏', '板栗的东西'],
+      shop: ['优衣库', '球鞋', '厨房小物', '日用品', '耳机'],
       traffic: ['地铁', '打车', '公交', '共享单车'],
-      home: ['水费', '宽带', '电话费', '电费'],
+      social: ['朋友聚餐', '生日礼物', 'AA 吃饭', '请喝咖啡'],
       fun: ['看电影', '电子产品', 'ktv', 'PS5游戏'],
-      study: ['买书', '网课', '文具'],
-      social: ['红包', '礼物', '请客'],
-      medical: ['感冒药', '体检', '门诊'],
-      other: ['杂项', '其他']
+      pet: ['猫粮', '猫砂', '宠物玩具', '疫苗'],
+      medical: ['感冒药', '体检', '门诊']
     };
     var ranges = {
-      food: [1200, 6800], daily: [900, 12800], traffic: [200, 4800],
-      home: [1500, 25000], fun: [2500, 18000], study: [3000, 26000],
-      social: [5000, 40000], medical: [1500, 20000], other: [800, 8000]
+      food: [1200, 6800], daily: [900, 12800], shop: [3000, 60000],
+      traffic: [200, 4800], social: [3000, 40000], fun: [2500, 18000],
+      pet: [1500, 25000], medical: [1500, 20000]
     };
     var weights = [
-      ['food', 34], ['daily', 14], ['traffic', 15], ['home', 6], ['fun', 10],
-      ['study', 5], ['social', 5], ['medical', 3], ['other', 8]
+      ['food', 34], ['daily', 14], ['shop', 10], ['traffic', 15],
+      ['social', 8], ['fun', 10], ['pet', 5], ['medical', 3]
     ];
     var weightTotal = weights.reduce(function (a, x) { return a + x[1]; }, 0);
 
@@ -467,7 +330,7 @@ window.App = window.App || {};
       });
     }
 
-    for (var i = 5; i >= 0; i--) {
+    for (var i = 11; i >= 0; i--) {
       var m = U.shiftYm(ymNow, -i);
       var days = U.daysInYm(m);
 
@@ -486,64 +349,26 @@ window.App = window.App || {};
         addRec(m, day, 'expense', range(r[0], r[1], 100), catId, pick(notes[catId]), 'manual', null);
       }
 
-      // 存钱
-      if (m !== ymNow || todayDay >= 15) {
-        s.savings.push({
-          id: U.uid('sv'),
-          type: 'in',
-          amount: 200000,
-          date: m + '-15',
-          note: '每月存一点',
-          createdAt: m + '-15T09:00:00.000Z'
-        });
+      // 偶尔的大件支出 / 人情
+      if (i % 4 === 2) {
+        addRec(m, 18, 'expense', range(68000, 188000, 100), 'fun',
+          pick(['换手机', '买耳机', '小家电']), 'manual', null);
       }
-      if (i === 4) {
-        var extra = Math.min(20, days);
-        if (m !== ymNow || todayDay >= extra) {
-          s.savings.push({
-            id: U.uid('sv'),
-            type: 'in',
-            amount: 500000,
-            date: m + '-' + U.pad2(extra),
-            note: '项目结余',
-            createdAt: m + '-' + U.pad2(extra) + 'T10:00:00.000Z'
-          });
-        }
-      }
-      if (i === 2) {
-        var wd = Math.min(22, days);
-        if (m !== ymNow || todayDay >= wd) {
-          s.savings.push({
-            id: U.uid('sv'),
-            type: 'out',
-            amount: 120000,
-            date: m + '-' + U.pad2(wd),
-            note: '应急支出',
-            createdAt: m + '-' + U.pad2(wd) + 'T11:00:00.000Z'
-          });
-        }
+      if (i % 5 === 3) {
+        addRec(m, 22, 'expense', range(20000, 90000, 100), 'social',
+          pick(['朋友结婚', '随份子', '回家机票']), 'manual', null);
       }
     }
 
-    // 额外收入
-    var bonusYm = U.shiftYm(ymNow, -4);
-    addRec(bonusYm, 20, 'income', 300000, 'bonus', '季度奖金', 'manual', null);
-    var sideYm = U.shiftYm(ymNow, -2);
-    addRec(sideYm, 8, 'income', 68000, 'side', '接了个小活', 'manual', null);
+    // 额外收入：季度奖金 / 红包 / 零星外快
+    for (var k = 2; k <= 11; k += 3) {
+      addRec(U.shiftYm(ymNow, -k), 20, 'income', 300000, 'bonus', '季度奖金', 'manual', null);
+    }
+    addRec(U.shiftYm(ymNow, -1), 6, 'income', 88000, 'redpacket', '长辈给的红包', 'manual', null);
+    addRec(U.shiftYm(ymNow, -2), 8, 'income', 68000, 'other', '接了个小活', 'manual', null);
+    addRec(U.shiftYm(ymNow, -6), 8, 'income', 45000, 'other', '稿费', 'manual', null);
 
     s.records.sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
-
-    // 目标状态
-    if (s.goal) {
-      var balance = s.settings.startBalance;
-      s.savings.forEach(function (x) {
-        balance += x.type === 'in' ? x.amount : -x.amount;
-      });
-      if (balance >= s.goal.targetAmount) {
-        s.goal.status = 'achieved';
-        s.goal.achievedAt = now;
-      }
-    }
 
     return s;
   }
@@ -567,13 +392,6 @@ window.App = window.App || {};
     postFixed: postFixed,
     undoFixed: undoFixed,
     autoPostFixed: autoPostFixed,
-    addSaving: addSaving,
-    removeSaving: removeSaving,
-    restoreSaving: restoreSaving,
-    setGoal: setGoal,
-    adjustGoal: adjustGoal,
-    resetGoal: resetGoal,
-    updateGoal: updateGoal,
     setSetting: setSetting,
     loadDemo: loadDemo,
     buildDemo: buildDemo

@@ -1,6 +1,6 @@
 /* =========================================================
    小账本 · 页面层
-   首页 Hero / 新手引导 / 存钱目标 / 存钱页
+   首页 Hero / 新手引导 / 每日收支日历 / 支出环形图 + 分类排行 / 收支趋势
    ========================================================= */
 
 /* ============ 首页：结余大卡 ============ */
@@ -85,96 +85,174 @@
 .guide-actions{ display:flex; gap:8px; }
 .guide-actions .btn{ flex:1; }
 
-/* ============ 存钱：目标卡 ============ */
-.goal-card{
-  padding:16px;
-  background:linear-gradient(145deg,#FFFCF3,#EAF6EF);
-  border-color:#DCEBE2;
+/* ============ 首页：每日收支日历 ============ */
+.cal-card{ padding:14px 12px 12px; }
+.cal-card .card-head{ margin-bottom:8px; padding:0 4px; }
+
+.cal-week{
+  display:grid; grid-template-columns:repeat(7,1fr); gap:3px;
+  margin-bottom:4px;
+}
+.cal-wd{
+  text-align:center;
+  font-size:9px; font-weight:700; color:var(--ink-3);
+  letter-spacing:.4px;
+}
+
+.cal-grid{
+  display:grid; grid-template-columns:repeat(7,1fr); gap:3px;
+}
+.cal-day{
+  min-height:40px;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:1px;
+  padding:4px 1px 3px;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:#FFFCF4;
+  overflow:hidden;
+  transition:background .14s ease, border-color .14s ease, transform .14s ease;
+}
+.cal-day.is-blank{ background:transparent; pointer-events:none; }
+.cal-num{
+  font-size:9.5px; font-weight:700; line-height:1.25;
+  color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.cal-day.has-data{
+  background:#FFF8EC;
+  border-color:var(--line-2);
+}
+.cal-day.has-data .cal-num{ color:var(--ink-2); }
+.cal-day.is-future .cal-num{ color:#C4B9A6; }
+.cal-val{
+  max-width:100%;
+  font-size:8.5px; font-weight:800; line-height:1.15;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.cal-val.out{ color:#C15C4A; }
+.cal-val.in{ color:var(--mint-deep); }
+
+.cal-day.is-today{
+  background:var(--mint-soft);
+  border-color:#CFE9DD;
+}
+.cal-day.is-today .cal-num{ color:var(--mint-dark); font-weight:800; }
+
+button.cal-day:active{ transform:scale(.93); background:var(--paper-2); }
+
+/* ============ 首页：本月花在哪 ============ */
+.cat-rank{ padding:14px 16px 8px; }
+.cat-rank .card-head{ margin-bottom:6px; }
+
+.cr-list{ display:flex; flex-direction:column; }
+
+.cr-row{
+  width:100%;
+  display:flex; flex-direction:column; gap:6px;
+  padding:8px 0 7px;
+  text-align:left;
+  border-top:1px dashed var(--line-2);
+  transition:opacity .14s ease, transform .14s ease;
+}
+.cr-row:first-child{ border-top:none; }
+.cr-row:active{ opacity:.72; transform:scale(.988); }
+
+.cr-top{ display:flex; align-items:center; gap:8px; min-width:0; }
+.cr-rank{
+  flex:0 0 auto;
+  width:13px;
+  text-align:center;
+  font-size:10px; font-weight:800; color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.cr-ico{
+  flex:0 0 auto;
+  width:26px; height:26px;
+  display:grid; place-items:center;
+  border-radius:9px;
+  background:var(--butter-soft);
+  border:1px solid #F5E6C2;
+  color:#A9812F;
+}
+.cr-ico .ico{ width:15px; height:15px; }
+.cr-name{
+  flex:1; min-width:0;
+  font-size:12.5px; font-weight:700; color:var(--ink-2);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.cr-amt{
+  flex:0 0 auto;
+  font-size:12.5px; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.cr-pct{
+  flex:0 0 auto; width:34px;
+  text-align:right;
+  font-size:10.5px; font-weight:700; color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+
+.cr-bar{
+  display:block;
+  margin-left:21px;
+  height:6px; border-radius:99px;
+  background:var(--line-2);
   overflow:hidden;
 }
-.goal-card.is-done{
-  background:linear-gradient(145deg,#FFF9E6,#E7F6EE);
-  border-color:#D3EBDD;
+.cr-bar i{
+  display:block; height:100%;
+  border-radius:99px;
+  background:#C7BBA6;
+  transition:width .5s cubic-bezier(.2,.8,.3,1);
 }
-.goal-top{ display:flex; align-items:center; gap:14px; }
 
-.ring{ position:relative; width:102px; height:102px; flex:0 0 auto; }
-.ring svg{ width:100%; height:100%; }
-.ring-txt{
-  position:absolute; inset:0;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
+/* 环形图：位于分类列表上方 */
+.cr-donut{
+  display:flex; justify-content:center;
+  margin:2px 0 12px;
 }
-.ring-txt b{
-  font-size:19px; font-weight:800; line-height:1.1; letter-spacing:-.5px;
-  color:var(--mint-dark);
-  font-variant-numeric:tabular-nums;
-}
-.ring-txt span{ margin-top:1px; font-size:8.5px; font-weight:700; color:var(--ink-3); letter-spacing:.6px; }
+.cr-donut-box{ width:150px; }
+.cr-donut-box svg{ width:100%; height:auto; display:block; }
 
-.goal-info{ flex:1; min-width:0; }
-.goal-name{
-  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-  font-size:14px; font-weight:800;
-}
-.goal-num{
-  display:flex; align-items:baseline; gap:2px;
-  margin:4px 0 3px;
-  font-size:23px; font-weight:800; letter-spacing:-.8px;
-  color:var(--mint-dark);
-  font-variant-numeric:tabular-nums;
-  white-space:nowrap; overflow:hidden;
-}
-.goal-num .cny{ font-size:13px; font-weight:800; opacity:.7; margin-right:1px; }
-.goal-of{
-  margin-left:4px;
-  font-size:11px; font-weight:700; letter-spacing:0; color:var(--ink-3);
-}
-.goal-sub{ font-size:10px; line-height:1.55; color:var(--ink-3); }
+/* 前三名给颜色焦点 */
+.cr-row:nth-child(1) .cr-amt{ color:#C15C4A; }
+.cr-row:nth-child(2) .cr-amt{ color:#A9812F; }
+.cr-row:nth-child(3) .cr-amt{ color:var(--mint-dark); }
+.cr-row:nth-child(1) .cr-rank,
+.cr-row:nth-child(2) .cr-rank,
+.cr-row:nth-child(3) .cr-rank{ color:var(--ink-2); }
 
-.goal-done{
+/* ============ 首页：收支趋势范围选择 ============ */
+.trend-range{ display:flex; align-items:center; gap:8px; margin-bottom:11px; }
+.tr-field{
+  flex:1; min-width:0;
   display:flex; align-items:center; gap:6px;
-  margin-top:12px; padding:10px 12px;
-  border-radius:13px;
-  background:var(--mint-soft);
-  border:1px solid #CFEADF;
-  color:var(--mint-dark);
-  font-size:12.5px; font-weight:800;
 }
-.goal-done .ico{ width:15px; height:15px; }
-.goal-foot{ display:flex; gap:8px; margin-top:11px; }
-.goal-foot .btn{ flex:1; }
-
-.goal-empty{ padding:22px 18px 18px; text-align:center; }
-.goal-empty-ico{
-  width:52px; height:52px; margin:0 auto 8px;
-  display:grid; place-items:center;
-  border-radius:16px;
-  background:rgba(255,255,255,.82);
-  border:1px solid #CFEADF;
-  color:var(--mint-dark);
+.tr-field > span{ flex:0 0 auto; font-size:10.5px; font-weight:700; color:var(--ink-3); }
+.tr-field select{
+  flex:1; min-width:0;
+  min-height:34px;
+  padding:0 30px 0 10px;
+  background-color:#FFFCF4;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239C9184' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 9px center;
+  background-size:14px 14px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  font-size:12.5px; font-weight:700; color:var(--ink-2);
+  -webkit-appearance:none; appearance:none;
 }
-.goal-empty h3{ font-size:15px; font-weight:800; }
-.goal-empty p{ margin:5px 0 14px; font-size:11.5px; line-height:1.65; color:var(--ink-3); }
+.tr-field select:focus{ border-color:var(--mint); background-color:#fff; outline:none; }
 
-/* ============ 存钱页 ============ */
-#savingsStats{ grid-template-columns:repeat(4,1fr); gap:8px; }
-#savingsStats .stat{ padding:10px 8px; }
-#savingsStats .st-val{ font-size:13px; letter-spacing:-.4px; }
-
-#savingsChartCard{ padding-bottom:12px; }
-#savingsListCard .day-head:first-of-type{ margin-top:2px; }
-
-/* 存钱页底部留白，避免最后一张卡贴着 Tab 栏 */
-#page-savings{ padding-bottom:16px; }
+/* 分类明细面板 */
+.cat-detail{ margin-top:2px; }
+.cat-detail .rec-amt{ font-size:13px; }
 
 /* ============ 窄屏微调 ============ */
 @media (max-width:380px){
   .hero{ padding:15px 14px; }
   .hero-pig{ width:66px; margin-right:-8px; }
   .hero-num .num{ font-size:clamp(26px, 8.4vw, 34px); }
-  .ring{ width:92px; height:92px; }
-  .ring-txt b{ font-size:17px; }
-  .goal-num{ font-size:20px; }
-  .goal-top{ gap:11px; }
-  #savingsStats .st-val{ font-size:12.5px; }
 }

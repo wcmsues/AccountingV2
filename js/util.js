@@ -142,37 +142,47 @@ window.App = window.App || {};
   }
 
   /* ---------- 分类表 ---------- */
+  /* 支出 8 类 + 收入 4 类；顺序决定记账页分类格与环形图的取色顺序 */
   var EXPENSE_CATS = [
-    { id: 'food', name: '餐饮', icon: 'i-coffee' },
-    { id: 'daily', name: '日用', icon: 'i-bag' },
+    { id: 'food', name: '餐饮', icon: 'i-bowl' },
+    { id: 'daily', name: '日常', icon: 'i-cart' },
+    { id: 'shop', name: '购物', icon: 'i-bag' },
     { id: 'traffic', name: '交通', icon: 'i-bus' },
-    { id: 'home', name: '居住', icon: 'i-house' },
+    { id: 'social', name: '社交', icon: 'i-people' },
     { id: 'fun', name: '娱乐', icon: 'i-game' },
-    { id: 'study', name: '学习', icon: 'i-study' },
-    { id: 'social', name: '人情', icon: 'i-gift' },
-    { id: 'medical', name: '医疗', icon: 'i-med' },
-    { id: 'other', name: '其他', icon: 'i-dots' }
+    { id: 'pet', name: '宠物', icon: 'i-paw' },
+    { id: 'medical', name: '医疗', icon: 'i-med' }
   ];
   var INCOME_CATS = [
     { id: 'salary', name: '工资', icon: 'i-wallet' },
-    { id: 'bonus', name: '奖金', icon: 'i-spark' },
-    { id: 'invest', name: '理财', icon: 'i-trend' },
-    { id: 'side', name: '副业', icon: 'i-briefcase' },
-    { id: 'other_in', name: '其他', icon: 'i-dots' }
+    { id: 'bonus', name: '奖金', icon: 'i-coin' },
+    { id: 'redpacket', name: '红包', icon: 'i-redpacket' },
+    { id: 'other', name: '其他', icon: 'i-dots' }
   ];
+
+  /* 已下线的旧分类：历史流水按最接近的新分类展示 */
+  var CAT_ALIAS = {
+    home: 'daily', study: 'shop',
+    invest: 'other', side: 'other', other_in: 'other'
+  };
+
+  /* 兜底项：只在历史数据里出现，不可在记账页选择 */
+  var LEGACY_CAT = { id: 'legacy', name: '其他', icon: 'i-dots' };
 
   function cats(type) { return type === 'income' ? INCOME_CATS : EXPENSE_CATS; }
 
   function cat(type, id) {
     var list = cats(type);
-    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
-    return list[list.length - 1];
+    var wanted = CAT_ALIAS[id] || id;
+    for (var i = 0; i < list.length; i++) if (list[i].id === wanted) return list[i];
+    return LEGACY_CAT;
   }
 
   function catAny(id) {
     var all = EXPENSE_CATS.concat(INCOME_CATS);
-    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
-    return EXPENSE_CATS[EXPENSE_CATS.length - 1];
+    var wanted = CAT_ALIAS[id] || id;
+    for (var i = 0; i < all.length; i++) if (all[i].id === wanted) return all[i];
+    return LEGACY_CAT;
   }
 
   App.util = {

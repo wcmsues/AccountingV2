@@ -30,9 +30,6 @@ window.App = window.App || {};
       settings: { startBalance: 0, monthlyBudget: 0, autoPostFixed: 'due' },
       records: [],
       fixedItems: [],
-      savings: [],
-      goal: null,
-      goalHistory: [],
       suppressedFixed: {}
     };
   }
@@ -98,52 +95,6 @@ window.App = window.App || {};
       });
     });
 
-    (Array.isArray(raw.savings) ? raw.savings : []).forEach(function (x) {
-      if (!x || typeof x !== 'object') return;
-      var amount = int(x.amount, 0);
-      if (amount <= 0) return;
-      s.savings.push({
-        id: (typeof x.id === 'string' && x.id) ? x.id : U.uid('sv'),
-        type: x.type === 'out' ? 'out' : 'in',
-        amount: amount,
-        date: U.isDate(x.date) ? x.date : U.todayStr(),
-        note: typeof x.note === 'string' ? x.note.slice(0, 40) : '',
-        createdAt: typeof x.createdAt === 'string' ? x.createdAt : U.nowIso()
-      });
-    });
-
-    if (raw.goal && typeof raw.goal === 'object') {
-      var g = raw.goal;
-      var target = int(g.targetAmount, 0);
-      if (target > 0) {
-        s.goal = {
-          id: (typeof g.id === 'string' && g.id) ? g.id : U.uid('g'),
-          name: String(g.name || '存钱目标').slice(0, 20),
-          targetAmount: target,
-          baseline: Math.max(0, int(g.baseline, 0)),
-          deadline: U.isDate(g.deadline) ? g.deadline : null,
-          status: g.status === 'achieved' ? 'achieved' : 'active',
-          achievedAt: typeof g.achievedAt === 'string' ? g.achievedAt : null,
-          createdAt: typeof g.createdAt === 'string' ? g.createdAt : U.nowIso()
-        };
-      }
-    }
-
-    (Array.isArray(raw.goalHistory) ? raw.goalHistory : []).forEach(function (h) {
-      if (!h || typeof h !== 'object') return;
-      var target = int(h.targetAmount, 0);
-      if (target <= 0) return;
-      s.goalHistory.push({
-        id: typeof h.id === 'string' ? h.id : U.uid('gh'),
-        name: String(h.name || '存钱目标').slice(0, 20),
-        targetAmount: target,
-        baseline: Math.max(0, int(h.baseline, 0)),
-        status: h.status === 'achieved' ? 'achieved' : 'active',
-        achievedAt: typeof h.achievedAt === 'string' ? h.achievedAt : null,
-        archivedAt: typeof h.archivedAt === 'string' ? h.archivedAt : U.nowIso()
-      });
-    });
-
     if (raw.suppressedFixed && typeof raw.suppressedFixed === 'object') {
       Object.keys(raw.suppressedFixed).forEach(function (k) {
         var v = Number(raw.suppressedFixed[k]);
@@ -202,7 +153,7 @@ window.App = window.App || {};
       }
 
       if (raw && !S.flags.restored) {
-        var needMigrate = Number(raw.version) !== 2 || !Array.isArray(raw.records) || !Array.isArray(raw.savings);
+        var needMigrate = Number(raw.version) !== 2 || !Array.isArray(raw.records) || !Array.isArray(raw.fixedItems);
         if (needMigrate) {
           try { localStorage.setItem(BAK, JSON.stringify(raw)); } catch (e) { /* ignore */ }
         }
