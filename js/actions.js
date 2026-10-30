@@ -399,16 +399,16 @@ window.App = window.App || {};
       settings: { startBalance: 800000, monthlyBudget: 700000, autoPostFixed: 'due' },
       records: [],
       fixedItems: [
-        { id: 'demo_rent', type: 'expense', name: '房租', amount: 450000, categoryId: 'home', day: 5, enabled: true, startMonth: startYm, endMonth: null },
+        { id: 'demo_rent', type: 'expense', name: '房租', amount: 500000, categoryId: 'home', day: 5, enabled: true, startMonth: startYm, endMonth: null },
         { id: 'demo_util', type: 'expense', name: '水电网', amount: 26000, categoryId: 'home', day: 12, enabled: true, startMonth: startYm, endMonth: null },
         { id: 'demo_sub', type: 'expense', name: '宽带 + 会员', amount: 9900, categoryId: 'fun', day: 18, enabled: true, startMonth: startYm, endMonth: null },
-        { id: 'demo_salary', type: 'income', name: '工资', amount: 1580000, categoryId: 'salary', day: 10, enabled: true, startMonth: startYm, endMonth: null }
+        { id: 'demo_salary', type: 'income', name: '工资', amount: 1000000, categoryId: 'salary', day: 10, enabled: true, startMonth: startYm, endMonth: null }
       ],
       savings: [],
       goal: {
         id: 'demo_goal',
-        name: '旅行基金',
-        targetAmount: 3000000,
+        name: 'MacBookPro',
+        targetAmount: 1600000,
         baseline: 0,
         deadline: '2027-06-30',
         status: 'active',
@@ -420,11 +420,11 @@ window.App = window.App || {};
     };
 
     var notes = {
-      food: ['午饭', '咖啡', '晚饭', '早餐', '外卖', '奶茶', '水果'],
-      daily: ['超市', '纸巾', '洗衣液', '牙膏', '家居小物'],
+      food: ['麦当劳', '瑞幸', '探鱼', '巴比馒头', 'DQ冰淇淋', '喜茶', '水果'],
+      daily: ['盒马', '纸巾', '洗衣液', '牙膏', '板栗的东西'],
       traffic: ['地铁', '打车', '公交', '共享单车'],
-      home: ['水电费', '物业费', '家居', '快递'],
-      fun: ['电影', '游戏', '演出', '唱歌'],
+      home: ['水费', '宽带', '电话费', '电费'],
+      fun: ['看电影', '电子产品', 'ktv', 'PS5游戏'],
       study: ['买书', '网课', '文具'],
       social: ['红包', '礼物', '请客'],
       medical: ['感冒药', '体检', '门诊'],
