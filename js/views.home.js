@@ -362,7 +362,10 @@ window.App = window.App || {};
   /* 点分类：该分类当月的每一笔（可继续进入单笔操作） */
   function openCatDetail(catId) {
     var cat = U.cat('expense', catId);
-    var list = C.recordsOf(ym, 'expense').filter(function (r) { return r.categoryId === catId; });
+    // 用解析后的 id 过滤，历史旧分类会一并算进来，和排行里的金额对得上
+    var list = C.recordsOf(ym, 'expense').filter(function (r) {
+      return U.cat('expense', r.categoryId).id === catId;
+    });
     if (!list.length) return;
 
     var sum = U.sum(list, function (r) { return r.amount; });

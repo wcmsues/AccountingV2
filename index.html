@@ -105,6 +105,12 @@
 
     <!-- ---------- 记账 ---------- -->
     <section class="page" data-page="ledger" id="page-ledger">
+      <div class="month-row">
+        <button class="month-pick" id="ledgerMonthPickBtn" type="button">
+          <span id="ledgerMonthPickTxt">本月</span>
+          <svg class="ico chev"><use href="#i-chev-down"/></svg>
+        </button>
+      </div>
       <form class="card entry-card" id="entryCard" autocomplete="off" novalidate>
         <div class="seg" id="entryTypeSeg" role="tablist">
           <button type="button" class="seg-item is-active" data-type="expense">支出</button>

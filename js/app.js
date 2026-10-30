@@ -21,6 +21,8 @@
     els.title = document.getElementById('pageTitle');
     els.monthBtn = document.getElementById('monthPickBtn');
     els.monthTxt = document.getElementById('monthPickTxt');
+    els.ledgerMonthBtn = document.getElementById('ledgerMonthPickBtn');
+    els.ledgerMonthTxt = document.getElementById('ledgerMonthPickTxt');
   }
 
   function boot() {
@@ -59,6 +61,7 @@
     var monthChanged = cur !== lastYm;
     if (monthChanged) {
       App.views.home.syncMonth(lastYm);
+      App.views.ledger.syncMonth(lastYm);
       lastYm = cur;
     }
     if (added) {
@@ -80,21 +83,28 @@
     });
   }
 
-  /* 首页月份下拉日历（按钮在首页结余卡上方） */
+  /* 月份下拉日历：首页与记账页各一个，行为一致 */
   function bindMonthPick() {
-    if (!els.monthBtn) return;
-    els.monthBtn.addEventListener('click', function () {
-      var r = C.recordYmRange();
-      els.monthBtn.classList.add('is-open');
-      App.ui.monthPopover(els.monthBtn, {
-        ym: App.views.home.getYm(),
-        min: r.min,
-        max: U.currentYm(),
-        onClose: function () { els.monthBtn.classList.remove('is-open'); },
-        onChange: function (target) {
-          App.views.home.setYm(target);
-          App.refresh();
-        }
+    var picks = [
+      { btn: els.monthBtn, view: App.views.home },
+      { btn: els.ledgerMonthBtn, view: App.views.ledger }
+    ];
+
+    picks.forEach(function (p) {
+      if (!p.btn || !p.view) return;
+      p.btn.addEventListener('click', function () {
+        var r = C.recordYmRange();
+        p.btn.classList.add('is-open');
+        App.ui.monthPopover(p.btn, {
+          ym: p.view.getYm(),
+          min: r.min,
+          max: U.currentYm(),
+          onClose: function () { p.btn.classList.remove('is-open'); },
+          onChange: function (target) {
+            p.view.setYm(target);
+            App.refresh();
+          }
+        });
       });
     });
   }
@@ -141,8 +151,8 @@
 
     els.title.textContent = current === 'home' ? '首页' : '记账';
 
-    var ym = App.views.home.getYm();
-    els.monthTxt.textContent = U.ymLabel(ym);
+    els.monthTxt.textContent = U.ymLabel(App.views.home.getYm());
+    if (els.ledgerMonthTxt) els.ledgerMonthTxt.textContent = U.ymLabel(App.views.ledger.getYm());
   }
 
   function refresh() {
@@ -308,6 +318,7 @@
           if (!ok) return;
           ST.clearAll();
           App.views.home.resetMonth();
+          App.views.ledger.resetMonth();
           refreshAll();
           App.ui.toast('已清空');
         });
@@ -368,6 +379,7 @@
           var r = ST.importJSON(String(reader.result || ''));
           if (!r.ok) { App.ui.toast(r.error || '导入失败'); return; }
           App.views.home.resetMonth();
+          App.views.ledger.resetMonth();
           refreshAll();
           App.ui.toast('导入完成');
         });

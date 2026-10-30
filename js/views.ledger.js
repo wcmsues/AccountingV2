@@ -1,6 +1,6 @@
 /* =========================================================
    小账本 · 记账页
-   支出/收入分段 · 金额 · 分类九宫格 · 固定收支 · 本月明细
+   支出/收入分段 · 金额 · 分类九宫格 · 固定收支 · 当月明细（可切月份）
    ========================================================= */
 window.App = window.App || {};
 (function (App) {
@@ -11,6 +11,7 @@ window.App = window.App || {};
   var S = App.store;
   var A = App.actions;
 
+  var ym = U.currentYm();     // 当前查看的月份，由顶部下拉日历切换
   var mode = 'expense';
   var catId = 'food';
   var locked = false;
@@ -327,10 +328,10 @@ window.App = window.App || {};
   }
 
   function renderStats() {
-    var ym = U.currentYm();
     var s = C.summary(ym);
+    var mLabel = ym === U.currentYm() ? '本月' : '当月';
     var cells = [
-      { label: '收入', val: s.income, sub: '本月进账', cls: 'income', icon: 'i-download' },
+      { label: '收入', val: s.income, sub: mLabel + '进账', cls: 'income', icon: 'i-download' },
       { label: '支出', val: s.expense, sub: s.expCount + ' 笔开销', cls: 'expense', icon: 'i-upload' },
       { label: '结余', val: s.net, sub: s.net >= 0 ? '存下的' : '超支了', cls: s.net >= 0 ? 'net' : 'expense', icon: 'i-wallet' },
       { label: '笔数', val: s.count, sub: '条记录', cls: '', icon: 'i-ledger', raw: true }
@@ -347,16 +348,17 @@ window.App = window.App || {};
   }
 
   function renderFixed() {
-    var ym = U.currentYm();
     var list = C.fixedStatus(ym);
+    var isCur = ym === U.currentYm();
     var todayDay = parseInt(U.todayStr().slice(8, 10), 10);
 
     var rows = list.map(function (x) {
       var it = x.item;
       var pill;
       if (!it.enabled) pill = '<span class="pill off">已停用</span>';
-      else if (x.posted) pill = '<span class="pill ok">本月已记</span>';
+      else if (x.posted) pill = '<span class="pill ok">' + (isCur ? '本月' : '当月') + '已记</span>';
       else if (x.suppressed) pill = '<span class="pill off">已跳过</span>';
+      else if (!isCur) pill = '<span class="pill">未记入</span>';
       else if (it.day <= todayDay) pill = '<span class="pill due">待记入</span>';
       else pill = '<span class="pill">' + it.day + ' 号</span>';
 
@@ -384,7 +386,6 @@ window.App = window.App || {};
   }
 
   function renderDetail() {
-    var ym = U.currentYm();
     var sum = C.summary(ym);
     var groups = C.groupByDay(C.recordsOf(ym));
 
@@ -418,18 +419,18 @@ window.App = window.App || {};
 
     els.detail.innerHTML =
       '<div class="card-head">' +
-        '<h2>本月明细</h2>' +
+        '<h2>' + (ym === U.currentYm() ? '本月明细' : '当月明细') + '</h2>' +
         '<span class="head-sub">' + sum.count + ' 笔 · 支出 ¥' + U.money(sum.expense) + '</span>' +
       '</div>' + body;
   }
 
   /* ---------- 固定收支操作 ---------- */
   function openFixedActions(id) {
-    var ym = U.currentYm();
     var it = S.state.fixedItems.filter(function (x) { return x.id === id; })[0];
     if (!it) return;
 
     var posted = C.fixedRecord(id, ym);
+    var mLabel = ym === U.currentYm() ? '本月' : '当月';
     var actions = [
       {
         label: '编辑', icon: 'i-edit',
@@ -437,7 +438,7 @@ window.App = window.App || {};
       },
       posted
         ? {
-            label: '撤销本月记录', icon: 'i-undo',
+            label: '撤销' + mLabel + '记录', icon: 'i-undo',
             onClick: function () {
               var rec = C.fixedRecord(id, ym);
               A.undoFixed(id, ym);
@@ -449,7 +450,7 @@ window.App = window.App || {};
             }
           }
         : {
-            label: '补记本月', icon: 'i-refresh',
+            label: '补记' + mLabel, icon: 'i-refresh',
             onClick: function () {
               A.postFixed(id, ym);
               App.refreshAll();
@@ -554,10 +555,44 @@ window.App = window.App || {};
     setTimeout(function () { s.body.querySelector('#fxName').focus(); }, 260);
   }
 
+  /* ---------- 月份 ---------- */
+  function getYm() { return ym; }
+
+  function setYm(next) {
+    var cur = U.currentYm();
+    if (!U.isYm(next) || next > cur) return;
+    if (next < C.recordYmRange().min) return;
+    ym = next;
+    syncFormDate();
+  }
+
+  /* 跨月时跟着往前挪一格（由 app 的心跳调用） */
+  function syncMonth(oldYm) {
+    if (ym !== oldYm) return;
+    ym = U.currentYm();
+    syncFormDate();
+  }
+
+  function resetMonth() {
+    ym = U.currentYm();
+    syncFormDate();
+  }
+
+  /* 记一笔的日期默认落在当前查看的月份里：本月用今天，往月用 1 号 */
+  function syncFormDate() {
+    if (!els.date) return;
+    if (els.date.value && U.ymOf(els.date.value) === ym) return;
+    els.date.value = ym === U.currentYm() ? U.todayStr() : ym + '-01';
+  }
+
   App.views = App.views || {};
   App.views.ledger = {
     init: init,
     render: render,
-    editRecord: editRecord
+    editRecord: editRecord,
+    syncMonth: syncMonth,
+    resetMonth: resetMonth,
+    getYm: getYm,
+    setYm: setYm
   };
 })(window.App);

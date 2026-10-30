@@ -41,19 +41,25 @@ window.App = window.App || {};
     return Math.round(s.expense / Math.max(1, days));
   }
 
+  /* 按分类聚合；用解析后的分类 id 归并，
+     这样历史数据里的旧分类（如 home / study）会和映射后的新分类合到同一行 */
   function catBreakdown(ym, type) {
     type = type || 'expense';
     var map = {};
     var count = {};
+    var cats = {};
     var total = 0;
     recordsOf(ym, type).forEach(function (r) {
-      map[r.categoryId] = (map[r.categoryId] || 0) + r.amount;
-      count[r.categoryId] = (count[r.categoryId] || 0) + 1;
+      var c = U.cat(type, r.categoryId);
+      var id = c.id;
+      map[id] = (map[id] || 0) + r.amount;
+      count[id] = (count[id] || 0) + 1;
+      cats[id] = c;
       total += r.amount;
     });
     return Object.keys(map).map(function (id) {
       return {
-        cat: U.cat(type, id),
+        cat: cats[id],
         amount: map[id],
         pct: total > 0 ? (map[id] / total) * 100 : 0,
         count: count[id] || 0
