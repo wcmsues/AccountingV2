@@ -387,7 +387,7 @@ details.fold[open] .chev .ico{ transform:rotate(180deg); }
 .entry-card.mode-income .cat.is-active .cat-ico{ color:var(--mint-dark); }
 
 .entry-meta{
-  display:grid; grid-template-columns:1fr auto; gap:9px;
+  display:grid; grid-template-columns:1fr; gap:9px;
   margin-top:12px;
 }
 .meta-field{
@@ -399,15 +399,17 @@ details.fold[open] .chev .ico{ transform:rotate(180deg); }
   border-radius:12px;
 }
 .meta-label{ font-size:9.5px; font-weight:700; color:var(--ink-3); }
-.meta-field input{ font-size:16px; font-weight:600; min-width:0; }
-.date-field{ width:138px; }
+.meta-field input{ font-size:16px; font-weight:600; min-width:0; width:100%; }
+.date-field{ width:auto; }
+.meta-field input[type="date"]{ display:block; }
 
 .entry-actions{ display:flex; gap:8px; margin-top:13px; }
 .entry-actions .btn{ flex:1; }
 
 /* ============ 存钱表单 ============ */
 .save-form{ padding:15px; }
-.save-form .card-head{ margin-bottom:0; }
+.save-form .card-head{ margin-bottom:12px; }
+.save-seg .seg-item{ min-height:42px; font-size:14px; }
 .save-form.mode-out .btn.primary{ background:var(--red); border-color:var(--red); box-shadow:0 3px 0 #C15C4A; }
 .save-row{
   display:flex; align-items:center; gap:9px;
@@ -631,7 +633,7 @@ body.is-locked{ overflow:hidden; }
 /* ============ toast ============ */
 .toast{
   position:fixed; left:50%;
-  bottom:calc(var(--tabbar-h) + var(--safe-b) + 18px);
+  bottom:calc(24px + var(--safe-b));
   z-index:220;
   display:flex; align-items:center; gap:10px;
   max-width:88vw;
@@ -645,6 +647,7 @@ body.is-locked{ overflow:hidden; }
   transform:translate(-50%,14px);
   transition:opacity .22s ease, transform .22s ease;
 }
+body.is-netlify .toast{ bottom:calc(62px + var(--safe-b)); }
 .toast.is-show{ opacity:1; transform:translate(-50%,0); pointer-events:auto; }
 .toast-txt{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .toast-act{

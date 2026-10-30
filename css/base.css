@@ -31,7 +31,6 @@
   --r-lg:22px;
   --r-md:16px;
   --r-sm:12px;
-  --tabbar-h:58px;
   --safe-b:env(safe-area-inset-bottom, 0px);
   --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
   --num:"SF Pro Display",-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
@@ -91,8 +90,9 @@ svg{display:block;}
   display:flex;
   flex-direction:column;
   background:var(--cream);
-  padding-bottom:calc(var(--tabbar-h) + var(--safe-b) + 8px);
-  overflow-x:hidden;
+  padding-bottom:calc(var(--safe-b) + 14px);
+  /* clip 不会创建滚动容器，避免破坏顶栏的 sticky */
+  overflow-x:clip;
 }
 @supports (min-height:100dvh){
   .app{ min-height:100dvh; }
@@ -102,15 +102,18 @@ svg{display:block;}
     box-shadow:0 0 0 1px rgba(120,98,66,.07), 0 40px 90px -50px rgba(90,72,44,.6);
   }
 }
+/* Netlify 免费版右下角徽标：底部留白，避免压住页面最后一行内容 */
+body.is-netlify .app{ padding-bottom:calc(var(--safe-b) + 56px); }
 
 /* ============ 顶栏 ============ */
 .appbar{
   position:sticky; top:0; z-index:30;
-  display:flex; align-items:center; gap:12px;
-  padding:14px 18px 10px;
-  background:linear-gradient(180deg, var(--cream) 72%, rgba(251,245,233,.82) 92%, rgba(251,245,233,0));
-  backdrop-filter:saturate(1.1) blur(6px);
-  -webkit-backdrop-filter:saturate(1.1) blur(6px);
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 8px;
+  background:rgba(251,245,233,.96);
+  backdrop-filter:saturate(1.1) blur(10px);
+  -webkit-backdrop-filter:saturate(1.1) blur(10px);
+  box-shadow:0 1px 0 rgba(237,226,205,.55);
 }
 .appbar-txt{flex:1; min-width:0;}
 .appbar h1{
@@ -145,31 +148,32 @@ svg{display:block;}
   *{ scroll-behavior:auto !important; }
 }
 
-/* ============ 底栏 ============ */
+/* ============ 顶部页面切换 ============ */
 .tabbar{
-  position:fixed; left:50%; transform:translateX(-50%);
-  bottom:0; z-index:40;
-  width:100%; max-width:460px;
-  display:grid; grid-template-columns:repeat(3,1fr);
-  padding:6px 10px calc(6px + var(--safe-b));
-  background:rgba(255,253,247,.94);
-  backdrop-filter:blur(14px) saturate(1.2);
-  -webkit-backdrop-filter:blur(14px) saturate(1.2);
-  border-top:1px solid var(--line-2);
+  flex:0 0 100%;
+  width:100%;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
+  padding:4px;
+  background:var(--cream-deep);
+  border:1px solid var(--line);
+  border-radius:14px;
 }
 .tab{
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-  height:calc(var(--tabbar-h) - 12px);
-  min-height:46px;
-  border-radius:14px;
+  display:flex; flex-direction:row; align-items:center; justify-content:center; gap:6px;
+  height:40px; min-height:40px;
+  border-radius:10px;
   color:var(--ink-3);
-  font-size:10.5px; letter-spacing:.4px;
-  transition:color .18s ease, background .18s ease;
+  font-size:12px; font-weight:600; letter-spacing:.2px;
+  transition:color .18s ease, background .18s ease, box-shadow .18s ease;
 }
-.tab .ico{ width:21px; height:21px; transition:transform .18s ease; }
-.tab.is-active{ color:var(--mint-dark); background:var(--mint-soft); font-weight:600; }
-.tab.is-active .ico{ transform:translateY(-1px); }
-.tab:active{ transform:scale(.97); }
+.tab .ico{ width:17px; height:17px; }
+.tab.is-active{
+  color:var(--mint-dark);
+  background:var(--paper);
+  font-weight:700;
+  box-shadow:var(--shadow-sm);
+}
+.tab:active{ transform:scale(.98); }
 
 /* ============ 全局提示条 ============ */
 .warn-bar{

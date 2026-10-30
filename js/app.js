@@ -19,6 +19,11 @@
     if (booted) return;
     booted = true;
 
+    // Netlify 免费版会在右下角注入徽标，这里给页面底部多留一点空间
+    if (/(^|\.)netlify\.app$/i.test(location.hostname)) {
+      document.body.classList.add('is-netlify');
+    }
+
     ST.load();
 
     App.views.home.init();
