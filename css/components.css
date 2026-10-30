@@ -401,7 +401,7 @@ details.fold[open] .chev .ico{ transform:rotate(180deg); }
 .meta-label{ font-size:9.5px; font-weight:700; color:var(--ink-3); }
 .meta-field input{ font-size:16px; font-weight:600; min-width:0; width:100%; }
 .date-field{ width:auto; }
-.meta-field input[type="date"]{ display:block; }
+.meta-field input[type="date"]{ display:block; line-height:1.3; }
 
 .entry-actions{ display:flex; gap:8px; margin-top:13px; }
 .entry-actions .btn{ flex:1; }
@@ -443,15 +443,25 @@ details.fold[open] .chev .ico{ transform:rotate(180deg); }
 .save-foot{ display:flex; align-items:center; gap:8px; margin-top:10px; }
 .date-inline{
   display:flex; align-items:center; gap:5px;
+  flex:1 1 auto; min-width:0;
   padding:8px 9px;
   background:#FFFCF4;
   border:1px solid var(--line-2);
   border-radius:12px;
   color:var(--ink-2);
+  overflow:hidden;
 }
-.date-inline .ico{ color:var(--ink-3); }
-.date-inline input{ font-size:16px; font-weight:600; width:118px; }
-.save-foot .btn{ margin-left:auto; min-width:90px; }
+.date-inline .ico{ color:var(--ink-3); flex:0 0 auto; }
+/* 不给固定宽度：iOS 原生日期文本宽度随语言/字号变化，写死会把日期挤成两行 */
+.date-inline input[type="date"]{
+  flex:1 1 auto;
+  width:auto; min-width:0; max-width:100%;
+  font-size:16px; font-weight:600;
+  line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.save-foot .btn{ margin-left:0; flex:0 0 auto; min-width:90px; }
 
 /* ============ 目标管理 ============ */
 .manage-row{ display:flex; gap:8px; }

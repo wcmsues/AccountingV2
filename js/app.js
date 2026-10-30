@@ -91,6 +91,19 @@
     App.refresh();
     requestAnimationFrame(function () {
       window.scrollTo(0, scrollPos[tab] || 0);
+      repaintDateInputs();
+    });
+  }
+
+  /* iOS 上在元素隐藏（display:none）时写入的日期值可能不渲染，
+     切回页面后重写一次，强制重绘日期文本 */
+  function repaintDateInputs() {
+    ['dateInput', 'savingDate'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el || !el.value || document.activeElement === el) return;
+      var v = el.value;
+      el.value = '';
+      el.value = v;
     });
   }
 
