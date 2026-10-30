@@ -1,0 +1,180 @@
+/* =========================================================
+   小账本 · 页面层
+   首页 Hero / 新手引导 / 存钱目标 / 存钱页
+   ========================================================= */
+
+/* ============ 首页：结余大卡 ============ */
+.hero{
+  display:flex; align-items:flex-start; gap:6px;
+  padding:17px 16px;
+  background:linear-gradient(120deg,#FFFBF0 0%,#EDF7F1 52%,#DCEFE6 100%);
+  border-color:#D9EBE1;
+  overflow:hidden;
+}
+.hero::after{
+  content:"";
+  position:absolute; right:-40px; bottom:-70px;
+  width:200px; height:200px; border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.85),rgba(255,255,255,0) 68%);
+  pointer-events:none;
+}
+.hero-left{ flex:1; min-width:0; position:relative; z-index:1; }
+.eyebrow{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 9px;
+  border-radius:99px;
+  background:rgba(255,255,255,.72);
+  border:1px solid #CDE9DB;
+  color:var(--mint-dark);
+  font-size:9.5px; font-weight:800; letter-spacing:1px;
+}
+.eyebrow .ico{ width:11px; height:11px; }
+.hero-num{
+  display:flex; align-items:baseline; gap:2px;
+  margin:9px 0 5px;
+  line-height:1;
+  min-width:0;
+}
+.hero-num .cny{
+  flex:0 0 auto;
+  font-size:18px; font-weight:800;
+  color:var(--mint-dark); opacity:.65;
+}
+.hero-num .num{
+  font-size:clamp(28px, 8.8vw, 38px);
+  font-weight:800; letter-spacing:-1.6px; line-height:1.05;
+  color:var(--mint-dark);
+  font-variant-numeric:tabular-nums;
+  word-break:break-all;
+}
+.hero.is-neg .hero-num .num,
+.hero.is-neg .hero-num .cny{ color:#C15C4A; }
+.hero-sub{ font-size:11.5px; color:var(--ink-2); }
+.hero-meta{ margin-top:3px; font-size:10px; color:var(--ink-3); }
+.hero-pig{
+  flex:0 0 auto;
+  width:80px;
+  margin:-8px -6px 0 0;
+  opacity:.95;
+}
+.hero-pig svg{ width:100%; height:auto; overflow:visible; }
+
+.coin-float{
+  animation:coinFloat 3.4s ease-in-out infinite;
+  transform-origin:70px 20px;
+}
+@keyframes coinFloat{
+  0%,100%{ transform:translateY(0) rotate(-6deg); }
+  50%{ transform:translateY(-7px) rotate(6deg); }
+}
+
+/* ============ 首页：新手引导 ============ */
+.guide-card{
+  padding:22px 18px 18px;
+  text-align:center;
+  background:linear-gradient(160deg,#FFFDF7,#F1F9F4);
+  border-color:#DCEDE4;
+}
+.guide-pig{ width:96px; margin:0 auto 4px; }
+.guide-pig svg{ width:100%; height:auto; overflow:visible; }
+.guide-card h3{ font-size:16px; font-weight:800; letter-spacing:-.2px; }
+.guide-card p{
+  margin:5px 0 14px;
+  font-size:11.5px; line-height:1.65; color:var(--ink-3);
+}
+.guide-actions{ display:flex; gap:8px; }
+.guide-actions .btn{ flex:1; }
+
+/* ============ 存钱：目标卡 ============ */
+.goal-card{
+  padding:16px;
+  background:linear-gradient(145deg,#FFFCF3,#EAF6EF);
+  border-color:#DCEBE2;
+  overflow:hidden;
+}
+.goal-card.is-done{
+  background:linear-gradient(145deg,#FFF9E6,#E7F6EE);
+  border-color:#D3EBDD;
+}
+.goal-top{ display:flex; align-items:center; gap:14px; }
+
+.ring{ position:relative; width:102px; height:102px; flex:0 0 auto; }
+.ring svg{ width:100%; height:100%; }
+.ring-txt{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.ring-txt b{
+  font-size:19px; font-weight:800; line-height:1.1; letter-spacing:-.5px;
+  color:var(--mint-dark);
+  font-variant-numeric:tabular-nums;
+}
+.ring-txt span{ margin-top:1px; font-size:8.5px; font-weight:700; color:var(--ink-3); letter-spacing:.6px; }
+
+.goal-info{ flex:1; min-width:0; }
+.goal-name{
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  font-size:14px; font-weight:800;
+}
+.goal-num{
+  display:flex; align-items:baseline; gap:2px;
+  margin:4px 0 3px;
+  font-size:23px; font-weight:800; letter-spacing:-.8px;
+  color:var(--mint-dark);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap; overflow:hidden;
+}
+.goal-num .cny{ font-size:13px; font-weight:800; opacity:.7; margin-right:1px; }
+.goal-of{
+  margin-left:4px;
+  font-size:11px; font-weight:700; letter-spacing:0; color:var(--ink-3);
+}
+.goal-sub{ font-size:10px; line-height:1.55; color:var(--ink-3); }
+
+.goal-done{
+  display:flex; align-items:center; gap:6px;
+  margin-top:12px; padding:10px 12px;
+  border-radius:13px;
+  background:var(--mint-soft);
+  border:1px solid #CFEADF;
+  color:var(--mint-dark);
+  font-size:12.5px; font-weight:800;
+}
+.goal-done .ico{ width:15px; height:15px; }
+.goal-foot{ display:flex; gap:8px; margin-top:11px; }
+.goal-foot .btn{ flex:1; }
+
+.goal-empty{ padding:22px 18px 18px; text-align:center; }
+.goal-empty-ico{
+  width:52px; height:52px; margin:0 auto 8px;
+  display:grid; place-items:center;
+  border-radius:16px;
+  background:rgba(255,255,255,.82);
+  border:1px solid #CFEADF;
+  color:var(--mint-dark);
+}
+.goal-empty h3{ font-size:15px; font-weight:800; }
+.goal-empty p{ margin:5px 0 14px; font-size:11.5px; line-height:1.65; color:var(--ink-3); }
+
+/* ============ 存钱页 ============ */
+#savingsStats{ grid-template-columns:repeat(4,1fr); gap:8px; }
+#savingsStats .stat{ padding:10px 8px; }
+#savingsStats .st-val{ font-size:13px; letter-spacing:-.4px; }
+
+#savingsChartCard{ padding-bottom:12px; }
+#savingsListCard .day-head:first-of-type{ margin-top:2px; }
+
+/* 存钱页底部留白，避免最后一张卡贴着 Tab 栏 */
+#page-savings{ padding-bottom:16px; }
+
+/* ============ 窄屏微调 ============ */
+@media (max-width:380px){
+  .hero{ padding:15px 14px; }
+  .hero-pig{ width:66px; margin-right:-8px; }
+  .hero-num .num{ font-size:clamp(26px, 8.4vw, 34px); }
+  .ring{ width:92px; height:92px; }
+  .ring-txt b{ font-size:17px; }
+  .goal-num{ font-size:20px; }
+  .goal-top{ gap:11px; }
+  #savingsStats .st-val{ font-size:12.5px; }
+}

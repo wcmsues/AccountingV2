@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志与本地环境
+*.log
+.env
+.env.*
+*.local
+
+# 依赖目录（本项目无依赖，留作兜底）
+node_modules/
+
+# 构建产物（本项目无构建，留作兜底）
+dist/
